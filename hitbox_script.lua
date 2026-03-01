@@ -288,10 +288,10 @@ local function Tween(obj, props, duration, style, direction)
 end
 
 -- ═══════════════════════════════════════════════
--- MAIN WINDOW (maior e mais decorado)
+-- MAIN WINDOW (maior — espaço para conteúdo e decoração)
 -- ═══════════════════════════════════════════════
-local MAIN_WINDOW_WIDTH = 320
-local MAIN_WINDOW_HEIGHT = 560
+local MAIN_WINDOW_WIDTH = 380
+local MAIN_WINDOW_HEIGHT = 680
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, MAIN_WINDOW_HEIGHT)
@@ -340,25 +340,28 @@ CreateCorner(MainAccentBottom, 1)
 CreateGradient(MainAccentBottom, Colors.AccentDark, Colors.AccentGlow, 0)
 
 -- ═══════════════════════════════════════════════
--- DECORAÇÃO: bolinhas/orbs que flutuam suavemente
+-- DECORAÇÃO: bolinhas/orbs que flutuam (maiores, mais visíveis, com espaço)
 -- ═══════════════════════════════════════════════
 local DecorationContainer = Instance.new("Frame")
 DecorationContainer.Name = "FloatingOrbs"
-DecorationContainer.Size = UDim2.new(1, -20, 1, -20)
-DecorationContainer.Position = UDim2.new(0, 10, 0, 10)
+DecorationContainer.Size = UDim2.new(1, -24, 1, -24)
+DecorationContainer.Position = UDim2.new(0, 12, 0, 12)
 DecorationContainer.BackgroundTransparency = 1
 DecorationContainer.BorderSizePixel = 0
 DecorationContainer.ClipsDescendants = true
 DecorationContainer.ZIndex = 0
 DecorationContainer.Parent = MainFrame
 
-local FLOAT_ORB_SIZE = 8
-local FLOAT_AMP = 12
-local FLOAT_SPEED = 1.8
+-- Tamanho e visibilidade: bolinhas maiores, menos transparentes, amplitude maior
+local FLOAT_ORB_SIZE = 14
+local FLOAT_AMP = 22
+local FLOAT_SPEED = 1.6
 local orbData = {}
+-- Posições nas bordas e cantos (espaço livre, não em cima do conteúdo central)
 local orbPositions = {
-    { 40, 80 }, { 280, 120 }, { 60, 280 }, { 260, 320 },
-    { 160, 180 }, { 100, 400 }, { 220, 60 }, { 300, 380 }
+    { 28, 95 },   { 352, 95 },   { 28, 585 },  { 352, 585 },
+    { 28, 340 },  { 352, 340 },  { 190, 28 },  { 190, 652 },
+    { 75, 200 },  { 305, 480 },  { 280, 180 },  { 100, 500 }
 }
 for i, pos in ipairs(orbPositions) do
     local orb = Instance.new("Frame")
@@ -367,7 +370,7 @@ for i, pos in ipairs(orbPositions) do
     orb.Position = UDim2.new(0, pos[1], 0, pos[2])
     orb.AnchorPoint = Vector2.new(0.5, 0.5)
     orb.BackgroundColor3 = i % 3 == 0 and Colors.AccentGlow or (i % 3 == 1 and Colors.Accent or Color3.fromRGB(130, 60, 220))
-    orb.BackgroundTransparency = 0.65
+    orb.BackgroundTransparency = 0.4
     orb.BorderSizePixel = 0
     orb.ZIndex = 0
     orb.Parent = DecorationContainer
@@ -378,8 +381,8 @@ for i, pos in ipairs(orbPositions) do
         baseY = pos[2],
         phaseX = (i - 1) * 0.7,
         phaseY = (i - 1) * 0.5 + 0.3,
-        ampX = FLOAT_AMP + (i % 2) * 4,
-        ampY = FLOAT_AMP - (i % 3) * 2
+        ampX = FLOAT_AMP + (i % 2) * 5,
+        ampY = FLOAT_AMP - (i % 3) * 3
     })
 end
 
@@ -637,8 +640,8 @@ end))
 -- ═══════════════════════════════════════════════
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Name = "Content"
-ContentFrame.Size = UDim2.new(1, -28, 1, -78)
-ContentFrame.Position = UDim2.new(0, 14, 0, 70)
+ContentFrame.Size = UDim2.new(1, -32, 1, -88)
+ContentFrame.Position = UDim2.new(0, 16, 0, 72)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
 
@@ -1575,7 +1578,4 @@ local function FindBall()
             end
         end
     end
-
-    return nil
-end
 
