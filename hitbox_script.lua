@@ -9,6 +9,12 @@
     Teclas: RightShift = GUI | H = Hitbox
 ]]
 
+-- Verificação do ambiente (evita "attempt to call a nil value" em executores incompatíveis)
+if type(game) ~= "table" or type(game.GetService) ~= "function" then
+    warn("[Volleyball Legends] Execute com um executor que suporte Roblox (game, GetService).")
+    return
+end
+
 -- ═══════════════════════════════════════════════
 -- SERVICES
 -- ═══════════════════════════════════════════════
@@ -1579,3 +1585,263 @@ local function FindBall()
         end
     end
 
+    return nil
+end
+
+-- ═══════════════════════════════════════════════
+-- DEBUG: Print ALL workspace objects (run once)
+-- ═══════════════════════════════════════════════
+local debugRan = not DEBUG_ENABLED
+local function DebugPrintObjects()
+    if debugRan then return end
+    debugRan = true
+
+    print("[Madara877fa] 🔍 DEBUG — Scanning ALL workspace descendants...")
+    local partCount = 0
+    local modelCount = 0
+    
+    -- Print top-level children first
+    print("[Madara877fa] 📁 Top-level workspace children:")
+    for _, child in ipairs(workspace:GetChildren()) do
+        print(string.format("  [%s] %s", child.ClassName, child.Name))
+    end
+    
+    -- Scan ALL BaseParts
+    print("[Madara877fa] 📦 All BaseParts in workspace:")
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            partCount = partCount + 1
+            -- Print everything to find the ball
+            if partCount <= 100 then
+                local shape = ""
+                if obj:IsA("Part") then
+                    shape = " Shape:" .. tostring(obj.Shape)
+                end
+                print(string.format("  [Part] %s | Size: %s%s | Path: %s",
+                    obj.Name, tostring(obj.Size), shape,
+                    obj:GetFullName()
+                ))
+            end
+        elseif obj:IsA("Model") then
+            modelCount = modelCount + 1
+        end
+    end
+    
+    print(string.format("[Madara877fa] 📊 Total: %d BaseParts, %d Models", partCount, modelCount))
+end
+
+-- ═══════════════════════════════════════════════
+-- MAIN LOOP (RenderStepped — runs before physics)
+-- ═══════════════════════════════════════════════
+local hitboxConnection = nil
+local frameCounter = 0
+
+local function ResetAll()
+    HITBOX_ENABLED = false
+    HITBOX_SIZE = MIN_HITBOX_SIZE
+    cachedBall = nil
+    cachedHitboxesFolder = nil
+    pcall(function() ApplyGameHitboxes(0) end)
+end
+
+hitboxConnection = RunService.RenderStepped:Connect(function()
+    if not Cleanup._active then return end
+    if not Safe.IsValidGui() then return end
+
+    -- Atualiza decoração das bolinhas flutuantes (só quando a janela está visível)
+    UpdateFloatingOrbs()
+
+    local cam = workspace.CurrentCamera
+    -- Uma única chamada FindBall() por frame (cone + pull)
+    local ball = FindBall()
+    if cam and BallConeOutline and BallConeOutline.Parent then
+        if ball and ball.Parent then
+            local cf = cam.CFrame
+            local lv = cf.LookVector
+            local tp = cf.Position
+            local bp = ball.Position
+            local dv = (bp - tp).Unit
+            local dot = math.clamp(lv:Dot(dv), -1, 1)
+            local ang = math.acos(dot)
+            if ang <= CONE_LIM_RAD then
+                local vx, vy, on = cam:WorldToViewportPoint(bp)
+                if on then
+                    if math.random() < (30/100) then
+                        vx = vx + (math.random(1, 2) * (math.random() >= 0.5 and 1 or -1))
+                        vy = vy + (math.random(1, 2) * (math.random() >= 0.5 and 1 or -1))
+                    end
+                    BallConeOutline.Position = UDim2.new(0, vx, 0, vy)
+                    BallConeOutline.Visible = true
+                    BallInCone = true
+                else
+                    BallConeOutline.Visible = false
+                    BallInCone = false
+                end
+            else
+                BallConeOutline.Visible = false
+                BallInCone = false
+            end
+        else
+            BallConeOutline.Visible = false
+            BallInCone = false
+        end
+    elseif BallConeOutline then
+        BallConeOutline.Visible = false
+        BallInCone = false
+    end
+
+    -- Aim Reck: marcador de queda (qualquer direção — ajuda na recepção e aos amigos)
+    if AIM_RECK_ENABLED and AimReckMarker and AimReckMarker.Parent then
+        local rootPart = GetRootPart()
+        if ball and ball.Parent and rootPart and cam then
+            local landing = predictLandingPosition(ball, rootPart)
+            if landing then
+                local v2, onScreen = cam:WorldToViewportPoint(landing)
+                if onScreen then
+                    AimReckMarker.Position = UDim2.new(0, v2.X, 0, v2.Y)
+                    AimReckMarker.Visible = true
+                else
+                    AimReckMarker.Visible = false
+                end
+            else
+                AimReckMarker.Visible = false
+            end
+        else
+            AimReckMarker.Visible = false
+        end
+    end
+
+    if BufferOn and frameCounter % 60 == 0 and #B >= 2 then
+        local s = sd(B)
+        if s and s < (7/200) then
+            lsc = lsc + 1
+            if lsc >= 2 then comp = true; lsc = 0 end
+        else
+            lsc = 0
+        end
+    end
+
+    frameCounter = frameCounter + 1
+    if DEBUG_ENABLED and frameCounter == 180 then
+        Safe.Call(DebugPrintObjects)
+    end
+
+    if not HITBOX_ENABLED or HITBOX_SIZE <= 0 then return end
+    local rootPart = GetRootPart()
+    if not rootPart then return end
+    -- Reutiliza 'ball' já obtido no início do frame
+    if not ball then return end
+    -- Modo conservador: sem pull da bola (só hitbox expandida)
+    if ANTICHEAT_DISABLE_BALL_PULL then return end
+
+    -- Aplicar pull só a cada N frames (+ jitter) para não ficar padrão constante
+    local pullInterval = BALL_PULL_FRAME_INTERVAL
+    if pullInterval < 1 then pullInterval = 1 end
+    if frameCounter % pullInterval ~= 0 then return end
+
+    local playerPos = rootPart.Position
+    local ballPos = ball.Position
+    local distance = (ballPos - playerPos).Magnitude
+    if distance <= HITBOX_SIZE and distance > 1 then
+        pcall(function()
+            local direction = (ballPos - playerPos).Unit
+            -- Pequena variação para não usar sempre os mesmos valores (menos assinatura)
+            local pullDist = PULL_DISTANCE * (0.92 + math.random() * 0.16)
+            local lerpSpeed = math.clamp(BALL_LERP_SPEED * (0.9 + math.random() * 0.25), 0.05, 0.5)
+            local targetPos = playerPos + direction * pullDist
+            local newPos = ball.Position:Lerp(targetPos, lerpSpeed)
+            ball.CFrame = CFrame.new(newPos)
+        end)
+    end
+end)
+Cleanup.Register(hitboxConnection)
+
+-- Reset ball cache on respawn; reaplica hitboxes do jogo se ainda estiver ON
+Cleanup.Register(LocalPlayer.CharacterAdded:Connect(function()
+    cachedBall = nil
+    cachedHitboxesFolder = nil
+    task.defer(function()
+        task.wait(1)
+        if not Cleanup._active then return end
+        if HITBOX_ENABLED and HITBOX_SIZE > 0 then
+            pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
+        end
+    end)
+end))
+
+-- Reaplica hitboxes a cada ~2s quando ON (como era antes).
+task.spawn(function()
+    while Cleanup._active do
+        local baseSec = (type(HITBOX_REAPPLY_BASE_SEC) == "number" and HITBOX_REAPPLY_BASE_SEC > 0) and HITBOX_REAPPLY_BASE_SEC or 2
+        task.wait(baseSec + (math.random() * 0.5))
+        if not Cleanup._active then break end
+        if not Safe.IsValidGui() then break end
+        if HITBOX_ENABLED and HITBOX_SIZE > 0 then
+            local ok = pcall(function()
+                if ApplyGameHitboxes(HITBOX_SIZE) then
+                    InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")"
+                else
+                    InfoText.Text = "Entre numa partida para ativar hitbox"
+                end
+            end)
+            if not ok and InfoText then
+                InfoText.Text = "RightShift = GUI | H = Hitbox"
+            end
+        end
+    end
+end)
+
+-- ═══════════════════════════════════════════════
+-- OPENING ANIMATION (só depois do atraso anti-detecção)
+-- ═══════════════════════════════════════════════
+MainFrame.Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, 0)
+MainFrame.BackgroundTransparency = 1
+
+local waitRemaining = scriptStartTime - tick()
+if waitRemaining > 0 then task.wait(waitRemaining) end
+
+task.wait(0.1)
+
+Tween(MainFrame, {BackgroundTransparency = 0}, 0.3)
+Tween(MainFrame, {Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, MAIN_WINDOW_HEIGHT)}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+-- ═══════════════════════════════════════════════
+-- CLEANUP: restaura estado e desconecta tudo ao fechar
+-- ═══════════════════════════════════════════════
+function Cleanup.Run()
+    Cleanup._active = false
+    for _, conn in ipairs(Cleanup._connections) do
+        Safe.Call(function() conn:Disconnect() end)
+    end
+    Cleanup._connections = {}
+    if hitboxConnection then Safe.Call(function() hitboxConnection:Disconnect() end); hitboxConnection = nil end
+    Safe.Call(function() ApplyGameHitboxes(0) end)
+    ESP_ENABLED = false
+    AIM_RECK_ENABLED = false
+    if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
+    if Safe.IsValidPlayer() then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then RemoveEspFromCharacter(plr.Character) end
+        end
+    end
+    ResetAll()
+end
+
+ScreenGui.Destroying:Connect(function()
+    Cleanup.Run()
+end)
+
+-- ═══════════════════════════════════════════════
+-- NOTIFICATION
+-- ═══════════════════════════════════════════════
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "Volleyball Legends",
+        Text = "Modo conservador ON. Risco de ban por sua conta.",
+        Duration = 4
+    })
+end)
+
+if DEBUG_ENABLED then
+    print("[Henrydangerkk] Script carregado. Hitbox + ESP. Debug ativo.")
+end
