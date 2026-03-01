@@ -9,8 +9,8 @@
     Teclas: RightShift = GUI | H = Hitbox
 ]]
 
--- Verificação do ambiente (evita "attempt to call a nil value" em executores incompatíveis)
-if type(game) ~= "table" or type(game.GetService) ~= "function" then
+-- Verificação do ambiente (game no Roblox é userdata, não table)
+if game == nil or type(game.GetService) ~= "function" then
     warn("[Volleyball Legends] Execute com um executor que suporte Roblox (game, GetService).")
     return
 end
