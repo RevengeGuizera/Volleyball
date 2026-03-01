@@ -57,8 +57,8 @@ local ANTICHEAT_SAFE_NO_BINDACTIVATE_HOOK = true
 local BALL_PULL_FRAME_INTERVAL = 2
 -- Variação no intervalo de reaplicar hitbox (evita intervalo fixo)
 local HITBOX_REAPPLY_JITTER_MAX = 0.8
--- Base do intervalo de reaplicar hitbox (segundos). Maior = menos writes = menos detecção. 10 = a cada ~10s.
-local HITBOX_REAPPLY_BASE_SEC = 10
+-- Base do intervalo de reaplicar hitbox (segundos). Como antes: ~2s.
+local HITBOX_REAPPLY_BASE_SEC = 2
 -- true = NÃO puxa a bola (muito exposto; servidor detecta). Hitbox expandida continua igual.
 local ANTICHEAT_DISABLE_BALL_PULL = true
 
@@ -1199,7 +1199,7 @@ SyncSliderVisual()
 -- o alcance do toque na bola segue o tamanho que você definiu. Base em scripts
 -- públicos (ex.: Sterling Hub).
 
--- Procura a pasta Hitboxes: primeiro direto Assets.Hitboxes; depois fallback só em Assets:GetChildren() (sem GetDescendants no ReplicatedStorage).
+-- Procura a pasta Hitboxes (como era antes: direto e depois em todo o ReplicatedStorage se precisar).
 local cachedHitboxesFolder = nil
 
 local function GetGameHitboxesFolder()
@@ -1208,13 +1208,14 @@ local function GetGameHitboxesFolder()
     end
     cachedHitboxesFolder = nil
     local assets = ReplicatedStorage:FindFirstChild("Assets")
-    if not assets then return nil end
-    local h = assets:FindFirstChild("Hitboxes")
-    if h then
-        cachedHitboxesFolder = h
-        return h
+    if assets then
+        local h = assets:FindFirstChild("Hitboxes")
+        if h and h:IsA("Folder") then
+            cachedHitboxesFolder = h
+            return h
+        end
     end
-    for _, child in ipairs(assets:GetChildren()) do
+    for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
         if child.Name == "Hitboxes" and child:IsA("Folder") then
             cachedHitboxesFolder = child
             return child
@@ -1223,26 +1224,23 @@ local function GetGameHitboxesFolder()
     return nil
 end
 
--- Aplica o tamanho só quando diferente (menos writes = menos chance de detecção).
+-- Aplica o tamanho (como antes: direto em cada Part).
 local function ApplyGameHitboxes(size)
     local folder = GetGameHitboxesFolder()
     if not folder then return false end
     local s = (size == nil or size <= 0) and GAME_HITBOX_DEFAULT_SIZE or math.max(1, size)
-    local targetSize = Vector3.new(s, s, s)
     local applied = 0
     for _, action in ipairs(folder:GetChildren()) do
         local part = action:FindFirstChild("Part") or action:FindFirstChildWhichIsA("BasePart")
         if part and part:IsA("BasePart") then
-            if part.Size ~= targetSize then
-                part.Size = targetSize
-                applied = applied + 1
-            end
+            part.Size = Vector3.new(s, s, s)
+            applied = applied + 1
         end
     end
     if applied > 0 and DEBUG_ENABLED then
         print("[Script] Hitbox aplicado: " .. applied .. " ações, alcance " .. s)
     end
-    return applied > 0 or (folder and #folder:GetChildren() > 0)
+    return applied > 0
 end
 
 local function GetCharacter()
@@ -1507,11 +1505,11 @@ Cleanup.Register(LocalPlayer.CharacterAdded:Connect(function()
     end)
 end))
 
--- Reaplica hitboxes a cada ~10s quando ON (menos writes = menos detecção). Jitter 2s.
+-- Reaplica hitboxes a cada ~2s quando ON (como era antes).
 task.spawn(function()
     while Cleanup._active do
-        local baseSec = (type(HITBOX_REAPPLY_BASE_SEC) == "number" and HITBOX_REAPPLY_BASE_SEC > 0) and HITBOX_REAPPLY_BASE_SEC or 10
-        task.wait(baseSec + (math.random() * 2))
+        local baseSec = (type(HITBOX_REAPPLY_BASE_SEC) == "number" and HITBOX_REAPPLY_BASE_SEC > 0) and HITBOX_REAPPLY_BASE_SEC or 2
+        task.wait(baseSec + (math.random() * 0.5))
         if not Cleanup._active then break end
         if not Safe.IsValidGui() then break end
         if HITBOX_ENABLED and HITBOX_SIZE > 0 then
