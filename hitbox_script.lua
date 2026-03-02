@@ -376,22 +376,31 @@ BallConeStroke.Parent = BallConeOutline
 -- Marcador Aim Reck (onde a bola vai cair — recepção / ajudar amigos)
 local AimReckMarker = Instance.new("Frame")
 AimReckMarker.Name = "AimReckMarker"
-AimReckMarker.Size = UDim2.new(0, 40, 0, 40)
+AimReckMarker.Size = UDim2.new(0, 52, 0, 52)
 AimReckMarker.Position = UDim2.new(0, 0, 0, 0)
 AimReckMarker.AnchorPoint = Vector2.new(0.5, 0.5)
 AimReckMarker.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
-AimReckMarker.BackgroundTransparency = 0.4
+AimReckMarker.BackgroundTransparency = 0.25
 AimReckMarker.BorderSizePixel = 0
 AimReckMarker.Visible = false
-AimReckMarker.ZIndex = 5
+AimReckMarker.ZIndex = 50
 AimReckMarker.Parent = ScreenGui
-CreateCorner(AimReckMarker, 20)
+CreateCorner(AimReckMarker, 26)
 local AimReckStroke = Instance.new("UIStroke")
 AimReckStroke.Thickness = 3
 AimReckStroke.Color = Color3.fromRGB(255, 255, 255)
-AimReckStroke.Transparency = 0.2
+AimReckStroke.Transparency = 0.1
 AimReckStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 AimReckStroke.Parent = AimReckMarker
+local AimReckLabel = Instance.new("TextLabel")
+AimReckLabel.Name = "Label"
+AimReckLabel.Size = UDim2.new(1, 0, 1, 0)
+AimReckLabel.BackgroundTransparency = 1
+AimReckLabel.Text = "▼"
+AimReckLabel.TextColor3 = Color3.new(1, 1, 1)
+AimReckLabel.TextScaled = true
+AimReckLabel.Font = Enum.Font.GothamBold
+AimReckLabel.Parent = AimReckMarker
 local CONE_HALF_DEG = 10
 local CONE_LIM_RAD = math.rad(CONE_HALF_DEG)
 
@@ -1592,15 +1601,36 @@ local function GetRootPart()
 end
 
 -- Aim Reck: prevê onde a bola vai cair (qualquer direção), para ajudar na recepção e aos amigos.
-local AIM_RECK_MIN_VELOCITY = 18
-local AIM_RECK_MAX_LANDING_DIST = 250
-local AIM_RECK_GROUND_OFFSET = 3.5
+local AIM_RECK_MIN_VELOCITY = 5
+local AIM_RECK_MAX_LANDING_DIST = 350
+local AIM_RECK_GROUND_OFFSET = 4
+local AIM_RECK_EDGE_MARGIN = 60
+
+local lastBallPosForReck = nil
+local lastBallTimeForReck = nil
 
 local function getBallVelocity(ball)
     if not ball or not ball.Parent then return nil end
-    if ball.AssemblyLinearVelocity then return ball.AssemblyLinearVelocity end
-    if ball.Velocity then return ball.Velocity end
-    return nil
+    local vel = nil
+    if ball.AssemblyLinearVelocity and ball.AssemblyLinearVelocity.Magnitude > 0 then
+        vel = ball.AssemblyLinearVelocity
+    elseif ball.Velocity and ball.Velocity.Magnitude > 0 then
+        vel = ball.Velocity
+    end
+    if vel and vel.Magnitude >= AIM_RECK_MIN_VELOCITY then return vel end
+    -- Fallback: estimar velocidade pela variação da posição (jogo pode mover a bola por CFrame)
+    local now = tick()
+    if lastBallPosForReck and lastBallTimeForReck and (now - lastBallTimeForReck) > 0.03 then
+        local dt = now - lastBallTimeForReck
+        local delta = ball.Position - lastBallPosForReck
+        local estVel = delta / dt
+        if estVel.Magnitude >= AIM_RECK_MIN_VELOCITY and estVel.Magnitude < 500 then
+            vel = estVel
+        end
+    end
+    lastBallPosForReck = ball.Position
+    lastBallTimeForReck = now
+    return (vel and vel.Magnitude >= AIM_RECK_MIN_VELOCITY) and vel or nil
 end
 
 local function predictLandingPosition(ball, rootPart)
@@ -1609,11 +1639,12 @@ local function predictLandingPosition(ball, rootPart)
     if not vel or vel.Magnitude < AIM_RECK_MIN_VELOCITY then return nil end
     local g = workspace.Gravity or 196.2
     local gravityVec = Vector3.new(0, -g, 0)
-    local dt = 1/90
+    local dt = 1/60
     local p = ball.Position
     local v = Vector3.new(vel.X, vel.Y, vel.Z)
-    local groundY = rootPart.Position.Y - AIM_RECK_GROUND_OFFSET
-    for _ = 1, 900 do
+    -- Nível do chão: perto dos pés do jogador ou um pouco abaixo da bola (para bola descendo)
+    local groundY = math.min(rootPart.Position.Y - 2, ball.Position.Y - 1)
+    for _ = 1, 1200 do
         p = p + v * dt
         v = v + gravityVec * dt
         if p.Y <= groundY then
@@ -1716,6 +1747,10 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     local cam = workspace.CurrentCamera
     -- Uma única chamada FindBall() por frame (cone + pull)
     local ball = FindBall()
+    if not ball then
+        lastBallPosForReck = nil
+        lastBallTimeForReck = nil
+    end
     if cam and BallConeOutline and BallConeOutline.Parent then
         if ball and ball.Parent then
             local cf = cam.CFrame
@@ -1759,11 +1794,17 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
             local landing = predictLandingPosition(ball, rootPart)
             if landing then
                 local v2, onScreen = cam:WorldToViewportPoint(landing)
+                local vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
+                local margin = AIM_RECK_EDGE_MARGIN
                 if onScreen then
                     AimReckMarker.Position = UDim2.new(0, v2.X, 0, v2.Y)
                     AimReckMarker.Visible = true
                 else
-                    AimReckMarker.Visible = false
+                    -- Mostra na borda da tela na direção da queda (sempre aparece algo quando há previsão)
+                    local x = math.clamp(v2.X, margin, vw - margin)
+                    local y = math.clamp(v2.Y, margin, vh - margin)
+                    AimReckMarker.Position = UDim2.new(0, x, 0, y)
+                    AimReckMarker.Visible = true
                 end
             else
                 AimReckMarker.Visible = false
