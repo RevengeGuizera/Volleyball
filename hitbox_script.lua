@@ -357,64 +357,6 @@ MainAccentBottom.Parent = MainFrame
 CreateCorner(MainAccentBottom, 1)
 CreateGradient(MainAccentBottom, Colors.AccentDark, Colors.AccentGlow, 0)
 
--- ═══════════════════════════════════════════════
--- DECORAÇÃO: bolinhas que flutuam (em cima do conteúdo, movimento visível)
--- ═══════════════════════════════════════════════
-local DecorationContainer = Instance.new("Frame")
-DecorationContainer.Name = "FloatingOrbs"
-DecorationContainer.Size = UDim2.new(1, -24, 1, -24)
-DecorationContainer.Position = UDim2.new(0, 12, 0, 12)
-DecorationContainer.BackgroundTransparency = 1
-DecorationContainer.BorderSizePixel = 0
-DecorationContainer.ClipsDescendants = true
-DecorationContainer.ZIndex = 5
-DecorationContainer.Parent = MainFrame
-
--- Movimento mais rápido e visível
-local FLOAT_ORB_SIZE = 16
-local FLOAT_AMP = 24
-local FLOAT_SPEED = 2.8
-local orbData = {}
-local orbPositions = {
-    { 30, 100 },  { 350, 100 },  { 30, 580 },  { 350, 580 },
-    { 30, 340 },   { 350, 340 },  { 190, 30 },  { 190, 650 },
-    { 80, 220 },   { 300, 460 },  { 270, 200 }, { 110, 520 }
-}
-for i, pos in ipairs(orbPositions) do
-    local orb = Instance.new("Frame")
-    orb.Name = "Orb" .. i
-    orb.Size = UDim2.new(0, FLOAT_ORB_SIZE, 0, FLOAT_ORB_SIZE)
-    orb.Position = UDim2.new(0, pos[1], 0, pos[2])
-    orb.AnchorPoint = Vector2.new(0.5, 0.5)
-    orb.BackgroundColor3 = i % 3 == 0 and Colors.AccentGlow or (i % 3 == 1 and Colors.Accent or Color3.fromRGB(140, 70, 255))
-    orb.BackgroundTransparency = 0.35
-    orb.BorderSizePixel = 0
-    orb.ZIndex = 5
-    orb.Active = false
-    orb.Parent = DecorationContainer
-    CreateCorner(orb, FLOAT_ORB_SIZE)
-    table.insert(orbData, {
-        orb = orb,
-        baseX = pos[1],
-        baseY = pos[2],
-        phaseX = (i - 1) * 0.7,
-        phaseY = (i - 1) * 0.5 + 0.3,
-        ampX = FLOAT_AMP + (i % 2) * 6,
-        ampY = FLOAT_AMP - (i % 3) * 3
-    })
-end
-
-local decorationStartTime = tick()
-local function UpdateFloatingOrbs()
-    if not DecorationContainer or not DecorationContainer.Parent or not MainFrame.Visible then return end
-    local t = (tick() - decorationStartTime) * FLOAT_SPEED
-    for _, data in ipairs(orbData) do
-        local x = data.baseX + math.sin(t + data.phaseX) * data.ampX
-        local y = data.baseY + math.sin(t * 0.85 + data.phaseY) * data.ampY
-        data.orb.Position = UDim2.new(0, x, 0, y)
-    end
-end
-
 local BallConeOutline = Instance.new("Frame")
 BallConeOutline.Name = "BallConeOutline"
 BallConeOutline.BackgroundTransparency = 1
@@ -654,14 +596,29 @@ Cleanup.Register(UserInputService.InputChanged:Connect(function(input)
 end))
 
 -- ═══════════════════════════════════════════════
--- CONTENT AREA
+-- CONTENT AREA (com rolagem para tudo caber)
 -- ═══════════════════════════════════════════════
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Name = "Scroll"
+ScrollingFrame.Size = UDim2.new(1, -32, 1, -88)
+ScrollingFrame.Position = UDim2.new(0, 16, 0, 72)
+ScrollingFrame.BackgroundTransparency = 1
+ScrollingFrame.BorderSizePixel = 0
+ScrollingFrame.ScrollBarThickness = 6
+ScrollingFrame.ScrollBarImageColor3 = Colors.Accent
+ScrollingFrame.ScrollBarImageTransparency = 0.5
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollingFrame.Parent = MainFrame
+CreateCorner(ScrollingFrame, 8)
+
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Name = "Content"
-ContentFrame.Size = UDim2.new(1, -32, 1, -88)
-ContentFrame.Position = UDim2.new(0, 16, 0, 72)
+ContentFrame.Size = UDim2.new(1, -6, 0, 0)
+ContentFrame.Position = UDim2.new(0, 0, 0, 0)
 ContentFrame.BackgroundTransparency = 1
-ContentFrame.Parent = MainFrame
+ContentFrame.AutomaticSize = Enum.AutomaticSize.Y
+ContentFrame.Parent = ScrollingFrame
 
 -- ═══════════════════════════════════════════════
 -- HITBOX MODULE SECTION
@@ -1220,9 +1177,6 @@ local function ApplyBordaColor(accent, glow, dark)
     if HITBOX_ENABLED then Tween(ToggleOuter, {BackgroundColor3 = accent}, 0.2) end
     if AIM_RECK_ENABLED then Tween(ReckToggleOuter, {BackgroundColor3 = accent}, 0.2) end
     if ESP_ENABLED then Tween(EspToggleOuter, {BackgroundColor3 = accent}, 0.2) end
-    for _, data in ipairs(orbData) do
-        data.orb.BackgroundColor3 = (data.orb.LayoutOrder or 0) % 3 == 0 and glow or ((data.orb.LayoutOrder or 0) % 3 == 1 and accent or dark)
-    end
 end
 
 for i, preset in ipairs(BordaPresets) do
@@ -1809,9 +1763,6 @@ end
 hitboxConnection = RunService.RenderStepped:Connect(function()
     if not Cleanup._active then return end
     if not Safe.IsValidGui() then return end
-
-    -- Atualiza decoração das bolinhas flutuantes (só quando a janela está visível)
-    UpdateFloatingOrbs()
 
     local cam = workspace.CurrentCamera
     -- Uma única chamada FindBall() por frame (cone + pull)
