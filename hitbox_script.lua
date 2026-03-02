@@ -98,6 +98,18 @@ local Colors = {
     Shadow = Color3.fromRGB(5, 5, 10),
 }
 
+-- Presets para "Cor da borda" (Accent, Glow, Dark)
+local BordaPresets = {
+    { name = "Violeta",   main = Color3.fromRGB(138, 43, 226),  glow = Color3.fromRGB(170, 80, 255),  dark = Color3.fromRGB(90, 20, 160) },
+    { name = "Azul",      main = Color3.fromRGB(59, 130, 246),   glow = Color3.fromRGB(96, 165, 250),  dark = Color3.fromRGB(29, 78, 216) },
+    { name = "Ciano",     main = Color3.fromRGB(34, 211, 238),  glow = Color3.fromRGB(103, 232, 249), dark = Color3.fromRGB(22, 163, 178) },
+    { name = "Verde",     main = Color3.fromRGB(34, 197, 94),    glow = Color3.fromRGB(74, 222, 128),  dark = Color3.fromRGB(21, 128, 61) },
+    { name = "Dourado",   main = Color3.fromRGB(234, 179, 8),    glow = Color3.fromRGB(253, 224, 71),  dark = Color3.fromRGB(161, 98, 7) },
+    { name = "Laranja",   main = Color3.fromRGB(249, 115, 22),   glow = Color3.fromRGB(251, 146, 60),  dark = Color3.fromRGB(194, 65, 12) },
+    { name = "Rosa",      main = Color3.fromRGB(236, 72, 153),   glow = Color3.fromRGB(244, 114, 182), dark = Color3.fromRGB(190, 24, 93) },
+    { name = "Vermelho",  main = Color3.fromRGB(239, 68, 68),    glow = Color3.fromRGB(248, 113, 113), dark = Color3.fromRGB(185, 28, 28) },
+}
+
 -- ═══════════════════════════════════════════════
 -- CAMADA ANTI-DETECÇÃO (por fora — não mexe em hitbox nem wallhack)
 -- Nomes aleatórios + atraso opcional para não parecer script injetado no join.
@@ -297,7 +309,7 @@ end
 -- MAIN WINDOW (maior — espaço para conteúdo e decoração)
 -- ═══════════════════════════════════════════════
 local MAIN_WINDOW_WIDTH = 380
-local MAIN_WINDOW_HEIGHT = 680
+local MAIN_WINDOW_HEIGHT = 730
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, MAIN_WINDOW_HEIGHT)
@@ -346,7 +358,7 @@ CreateCorner(MainAccentBottom, 1)
 CreateGradient(MainAccentBottom, Colors.AccentDark, Colors.AccentGlow, 0)
 
 -- ═══════════════════════════════════════════════
--- DECORAÇÃO: bolinhas/orbs que flutuam (maiores, mais visíveis, com espaço)
+-- DECORAÇÃO: bolinhas que flutuam (em cima do conteúdo, movimento visível)
 -- ═══════════════════════════════════════════════
 local DecorationContainer = Instance.new("Frame")
 DecorationContainer.Name = "FloatingOrbs"
@@ -355,19 +367,18 @@ DecorationContainer.Position = UDim2.new(0, 12, 0, 12)
 DecorationContainer.BackgroundTransparency = 1
 DecorationContainer.BorderSizePixel = 0
 DecorationContainer.ClipsDescendants = true
-DecorationContainer.ZIndex = 0
+DecorationContainer.ZIndex = 5
 DecorationContainer.Parent = MainFrame
 
--- Tamanho e visibilidade: bolinhas maiores, menos transparentes, amplitude maior
-local FLOAT_ORB_SIZE = 14
-local FLOAT_AMP = 22
-local FLOAT_SPEED = 1.6
+-- Movimento mais rápido e visível
+local FLOAT_ORB_SIZE = 16
+local FLOAT_AMP = 24
+local FLOAT_SPEED = 2.8
 local orbData = {}
--- Posições nas bordas e cantos (espaço livre, não em cima do conteúdo central)
 local orbPositions = {
-    { 28, 95 },   { 352, 95 },   { 28, 585 },  { 352, 585 },
-    { 28, 340 },  { 352, 340 },  { 190, 28 },  { 190, 652 },
-    { 75, 200 },  { 305, 480 },  { 280, 180 },  { 100, 500 }
+    { 30, 100 },  { 350, 100 },  { 30, 580 },  { 350, 580 },
+    { 30, 340 },   { 350, 340 },  { 190, 30 },  { 190, 650 },
+    { 80, 220 },   { 300, 460 },  { 270, 200 }, { 110, 520 }
 }
 for i, pos in ipairs(orbPositions) do
     local orb = Instance.new("Frame")
@@ -375,10 +386,11 @@ for i, pos in ipairs(orbPositions) do
     orb.Size = UDim2.new(0, FLOAT_ORB_SIZE, 0, FLOAT_ORB_SIZE)
     orb.Position = UDim2.new(0, pos[1], 0, pos[2])
     orb.AnchorPoint = Vector2.new(0.5, 0.5)
-    orb.BackgroundColor3 = i % 3 == 0 and Colors.AccentGlow or (i % 3 == 1 and Colors.Accent or Color3.fromRGB(130, 60, 220))
-    orb.BackgroundTransparency = 0.4
+    orb.BackgroundColor3 = i % 3 == 0 and Colors.AccentGlow or (i % 3 == 1 and Colors.Accent or Color3.fromRGB(140, 70, 255))
+    orb.BackgroundTransparency = 0.35
     orb.BorderSizePixel = 0
-    orb.ZIndex = 0
+    orb.ZIndex = 5
+    orb.Active = false
     orb.Parent = DecorationContainer
     CreateCorner(orb, FLOAT_ORB_SIZE)
     table.insert(orbData, {
@@ -387,7 +399,7 @@ for i, pos in ipairs(orbPositions) do
         baseY = pos[2],
         phaseX = (i - 1) * 0.7,
         phaseY = (i - 1) * 0.5 + 0.3,
-        ampX = FLOAT_AMP + (i % 2) * 5,
+        ampX = FLOAT_AMP + (i % 2) * 6,
         ampY = FLOAT_AMP - (i % 3) * 3
     })
 end
@@ -561,23 +573,23 @@ TitleIcon.Position = UDim2.new(0, 16, 0, 8)
 TitleIcon.BackgroundTransparency = 1
 TitleIcon.Text = "🏐"
 TitleIcon.TextSize = 24
-TitleIcon.Font = Enum.Font.SourceSans
+TitleIcon.Font = Enum.Font.GothamBold
 TitleIcon.TextColor3 = Colors.TextPrimary
 TitleIcon.Parent = TitleBar
 
--- Title text
+-- Title text (fonte mais bonita)
 local TitleText = Instance.new("TextLabel")
 TitleText.Size = UDim2.new(1, -110, 0, 24)
 TitleText.Position = UDim2.new(0, 56, 0, 8)
 TitleText.BackgroundTransparency = 1
 TitleText.Text = "VOLLEYBALL LEGENDS"
-TitleText.TextSize = 16
-TitleText.Font = Enum.Font.GothamBold
+TitleText.TextSize = 17
+TitleText.Font = Enum.Font.GothamBlack
 TitleText.TextColor3 = Colors.TextPrimary
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
 
--- Creator (Henrydangerkk) — em destaque
+-- Creator (Henrydangerkk)
 local SubTitle = Instance.new("TextLabel")
 SubTitle.Size = UDim2.new(1, -110, 0, 20)
 SubTitle.Position = UDim2.new(0, 56, 0, 32)
@@ -678,7 +690,7 @@ SectionIcon.Position = UDim2.new(0, 18, 0, 0)
 SectionIcon.BackgroundTransparency = 1
 SectionIcon.Text = "🎯"
 SectionIcon.TextSize = 15
-SectionIcon.Font = Enum.Font.SourceSans
+SectionIcon.Font = Enum.Font.GothamBold
 SectionIcon.TextColor3 = Colors.TextPrimary
 SectionIcon.Parent = SectionHeader
 
@@ -688,7 +700,7 @@ SectionTitle.Position = UDim2.new(0, 50, 0, 0)
 SectionTitle.BackgroundTransparency = 1
 SectionTitle.Text = "HITBOX MODULE"
 SectionTitle.TextSize = 13
-SectionTitle.Font = Enum.Font.GothamBold
+SectionTitle.Font = Enum.Font.GothamBlack
 SectionTitle.TextColor3 = Colors.TextPrimary
 SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
 SectionTitle.Parent = SectionHeader
@@ -711,7 +723,7 @@ ToggleLabel.Position = UDim2.new(0, 16, 0, 0)
 ToggleLabel.BackgroundTransparency = 1
 ToggleLabel.Text = "Hitbox Expander"
 ToggleLabel.TextSize = 14
-ToggleLabel.Font = Enum.Font.GothamMedium
+ToggleLabel.Font = Enum.Font.SourceSansSemibold
 ToggleLabel.TextColor3 = Colors.TextSecondary
 ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
 ToggleLabel.Parent = ToggleContainer
@@ -769,7 +781,7 @@ SliderLabel.Position = UDim2.new(0, 16, 0, 10)
 SliderLabel.BackgroundTransparency = 1
 SliderLabel.Text = "Hitbox Size"
 SliderLabel.TextSize = 14
-SliderLabel.Font = Enum.Font.GothamMedium
+SliderLabel.Font = Enum.Font.SourceSansSemibold
 SliderLabel.TextColor3 = Colors.TextSecondary
 SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
 SliderLabel.Parent = SliderContainer
@@ -781,7 +793,7 @@ SliderValue.Position = UDim2.new(0.7, -16, 0, 10)
 SliderValue.BackgroundTransparency = 1
 SliderValue.Text = tostring(MIN_HITBOX_SIZE)
 SliderValue.TextSize = 17
-SliderValue.Font = Enum.Font.GothamBold
+SliderValue.Font = Enum.Font.GothamBlack
 SliderValue.TextColor3 = Colors.AccentGlow
 SliderValue.TextXAlignment = Enum.TextXAlignment.Right
 SliderValue.Parent = SliderContainer
@@ -884,7 +896,7 @@ ReckSectionIcon.Position = UDim2.new(0, 18, 0, 0)
 ReckSectionIcon.BackgroundTransparency = 1
 ReckSectionIcon.Text = "📍"
 ReckSectionIcon.TextSize = 15
-ReckSectionIcon.Font = Enum.Font.SourceSans
+ReckSectionIcon.Font = Enum.Font.GothamBold
 ReckSectionIcon.TextColor3 = Colors.TextPrimary
 ReckSectionIcon.Parent = ReckSectionHeader
 
@@ -894,7 +906,7 @@ ReckSectionTitle.Position = UDim2.new(0, 50, 0, 0)
 ReckSectionTitle.BackgroundTransparency = 1
 ReckSectionTitle.Text = "AIM RECK"
 ReckSectionTitle.TextSize = 13
-ReckSectionTitle.Font = Enum.Font.GothamBold
+ReckSectionTitle.Font = Enum.Font.GothamBlack
 ReckSectionTitle.TextColor3 = Colors.TextPrimary
 ReckSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
 ReckSectionTitle.Parent = ReckSectionHeader
@@ -914,7 +926,7 @@ ReckToggleLabel.Position = UDim2.new(0, 16, 0, 0)
 ReckToggleLabel.BackgroundTransparency = 1
 ReckToggleLabel.Text = "Mostra onde a bola vai cair (recepção / ajudar amigos)"
 ReckToggleLabel.TextSize = 12
-ReckToggleLabel.Font = Enum.Font.GothamMedium
+ReckToggleLabel.Font = Enum.Font.SourceSansSemibold
 ReckToggleLabel.TextColor3 = Colors.TextSecondary
 ReckToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
 ReckToggleLabel.TextWrapped = true
@@ -988,7 +1000,7 @@ EspSectionIcon.Position = UDim2.new(0, 18, 0, 0)
 EspSectionIcon.BackgroundTransparency = 1
 EspSectionIcon.Text = "👁"
 EspSectionIcon.TextSize = 15
-EspSectionIcon.Font = Enum.Font.SourceSans
+EspSectionIcon.Font = Enum.Font.GothamBold
 EspSectionIcon.TextColor3 = Colors.TextPrimary
 EspSectionIcon.Parent = EspSectionHeader
 
@@ -998,7 +1010,7 @@ EspSectionTitle.Position = UDim2.new(0, 50, 0, 0)
 EspSectionTitle.BackgroundTransparency = 1
 EspSectionTitle.Text = "PLAYER ESP"
 EspSectionTitle.TextSize = 13
-EspSectionTitle.Font = Enum.Font.GothamBold
+EspSectionTitle.Font = Enum.Font.GothamBlack
 EspSectionTitle.TextColor3 = Colors.TextPrimary
 EspSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
 EspSectionTitle.Parent = EspSectionHeader
@@ -1018,7 +1030,7 @@ EspToggleLabel.Position = UDim2.new(0, 16, 0, 0)
 EspToggleLabel.BackgroundTransparency = 1
 EspToggleLabel.Text = "Ver jogadores através de paredes"
 EspToggleLabel.TextSize = 13
-EspToggleLabel.Font = Enum.Font.GothamMedium
+EspToggleLabel.Font = Enum.Font.SourceSansSemibold
 EspToggleLabel.TextColor3 = Colors.TextSecondary
 EspToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
 EspToggleLabel.Parent = EspToggleContainer
@@ -1101,9 +1113,159 @@ EspToggleOuter.MouseLeave:Connect(function()
     if not ESP_ENABLED then Tween(EspToggleOuter, {BackgroundColor3 = Colors.SliderBg}, 0.2) end
 end)
 
+-- ═══════════════════════════════════════════════
+-- COR BORDA (escolher cor da decoração da interface)
+-- ═══════════════════════════════════════════════
+local BordaSectionHeader = Instance.new("Frame")
+BordaSectionHeader.Size = UDim2.new(1, 0, 0, 38)
+BordaSectionHeader.Position = UDim2.new(0, 0, 0, 384)
+BordaSectionHeader.BackgroundColor3 = Colors.Panel
+BordaSectionHeader.BorderSizePixel = 0
+BordaSectionHeader.Parent = ContentFrame
+CreateCorner(BordaSectionHeader, 10)
+CreateStroke(BordaSectionHeader, Color3.fromRGB(60, 55, 85), 1)
+local BordaSectionLeftBar = Instance.new("Frame")
+BordaSectionLeftBar.Size = UDim2.new(0, 4, 0, 22)
+BordaSectionLeftBar.Position = UDim2.new(0, 8, 0.5, -11)
+BordaSectionLeftBar.BackgroundColor3 = Colors.Accent
+BordaSectionLeftBar.BorderSizePixel = 0
+BordaSectionLeftBar.Parent = BordaSectionHeader
+CreateCorner(BordaSectionLeftBar, 1)
+
+local BordaSectionIcon = Instance.new("TextLabel")
+BordaSectionIcon.Size = UDim2.new(0, 28, 1, 0)
+BordaSectionIcon.Position = UDim2.new(0, 18, 0, 0)
+BordaSectionIcon.BackgroundTransparency = 1
+BordaSectionIcon.Text = "🎨"
+BordaSectionIcon.TextSize = 15
+BordaSectionIcon.Font = Enum.Font.GothamBold
+BordaSectionIcon.TextColor3 = Colors.TextPrimary
+BordaSectionIcon.Parent = BordaSectionHeader
+
+local BordaSectionTitle = Instance.new("TextLabel")
+BordaSectionTitle.Size = UDim2.new(1, -55, 1, 0)
+BordaSectionTitle.Position = UDim2.new(0, 50, 0, 0)
+BordaSectionTitle.BackgroundTransparency = 1
+BordaSectionTitle.Text = "COR BORDA"
+BordaSectionTitle.TextSize = 13
+BordaSectionTitle.Font = Enum.Font.GothamBlack
+BordaSectionTitle.TextColor3 = Colors.TextPrimary
+BordaSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+BordaSectionTitle.Parent = BordaSectionHeader
+
+local BordaColorRow = Instance.new("Frame")
+BordaColorRow.Size = UDim2.new(1, -24, 0, 36)
+BordaColorRow.Position = UDim2.new(0, 12, 0, 430)
+BordaColorRow.BackgroundColor3 = Colors.Panel
+BordaColorRow.BorderSizePixel = 0
+BordaColorRow.Parent = ContentFrame
+CreateCorner(BordaColorRow, 8)
+CreateStroke(BordaColorRow, Color3.fromRGB(45, 45, 70), 1)
+
+local BordaLabel = Instance.new("TextLabel")
+BordaLabel.Size = UDim2.new(0, 80, 1, 0)
+BordaLabel.Position = UDim2.new(0, 10, 0, 0)
+BordaLabel.BackgroundTransparency = 1
+BordaLabel.Text = "Cor da borda"
+BordaLabel.TextSize = 11
+BordaLabel.Font = Enum.Font.SourceSansSemibold
+BordaLabel.TextColor3 = Colors.TextSecondary
+BordaLabel.TextXAlignment = Enum.TextXAlignment.Left
+BordaLabel.Parent = BordaColorRow
+
+local BordaButtonsContainer = Instance.new("Frame")
+BordaButtonsContainer.Size = UDim2.new(1, -100, 1, -12)
+BordaButtonsContainer.Position = UDim2.new(0, 92, 0, 6)
+BordaButtonsContainer.BackgroundTransparency = 1
+BordaButtonsContainer.LayoutOrder = 1
+BordaButtonsContainer.Parent = BordaColorRow
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.FillDirection = Enum.FillDirection.Horizontal
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+UIListLayout.Padding = UDim.new(0, 6)
+UIListLayout.Parent = BordaButtonsContainer
+
+local currentBordaIndex = 1
+
+local function ApplyBordaColor(accent, glow, dark)
+    Colors.Accent = accent
+    Colors.AccentGlow = glow
+    Colors.AccentDark = dark
+    Colors.SliderFill = accent
+    MainStroke.Color = accent
+    MainStrokeOuter.Color = glow
+    TitleAccentCorner.BackgroundColor3 = accent
+    SubTitle.TextColor3 = glow
+    SectionLeftBar.BackgroundColor3 = accent
+    SliderValue.TextColor3 = glow
+    SliderFill.BackgroundColor3 = accent
+    BordaSectionLeftBar.BackgroundColor3 = accent
+    ReckSectionLeftBar.BackgroundColor3 = accent
+    EspSectionLeftBar.BackgroundColor3 = accent
+    ToggleGuiBtn.BackgroundColor3 = accent
+    local gradMain = MainAccentBottom:FindFirstChildOfClass("UIGradient")
+    if gradMain then gradMain.Color = ColorSequence.new(dark, glow) end
+    local gradAccent = AccentLine:FindFirstChildOfClass("UIGradient")
+    if gradAccent then gradAccent.Color = ColorSequence.new(dark, glow) end
+    local gradSlider = SliderFill:FindFirstChildOfClass("UIGradient")
+    if gradSlider then gradSlider.Color = ColorSequence.new(dark, glow) end
+    local strokeKnob = SliderKnob:FindFirstChildOfClass("UIStroke")
+    if strokeKnob then strokeKnob.Color = accent end
+    local glowKnob = SliderKnob:FindFirstChildOfClass("Frame")
+    if glowKnob then glowKnob.BackgroundColor3 = accent end
+    local strokeGui = ToggleGuiBtn:FindFirstChildOfClass("UIStroke")
+    if strokeGui then strokeGui.Color = glow end
+    if HITBOX_ENABLED then Tween(ToggleOuter, {BackgroundColor3 = accent}, 0.2) end
+    if AIM_RECK_ENABLED then Tween(ReckToggleOuter, {BackgroundColor3 = accent}, 0.2) end
+    if ESP_ENABLED then Tween(EspToggleOuter, {BackgroundColor3 = accent}, 0.2) end
+    for _, data in ipairs(orbData) do
+        data.orb.BackgroundColor3 = (data.orb.LayoutOrder or 0) % 3 == 0 and glow or ((data.orb.LayoutOrder or 0) % 3 == 1 and accent or dark)
+    end
+end
+
+for i, preset in ipairs(BordaPresets) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 28, 0, 28)
+    btn.BackgroundColor3 = preset.main
+    btn.BorderSizePixel = 0
+    btn.Text = ""
+    btn.LayoutOrder = i
+    btn.Parent = BordaButtonsContainer
+    CreateCorner(btn, 14)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(255, 255, 255)
+    stroke.Thickness = 1
+    stroke.Transparency = 0.6
+    stroke.Parent = btn
+    if i == currentBordaIndex then
+        stroke.Transparency = 0
+        stroke.Thickness = 2
+    end
+    btn.MouseButton1Click:Connect(function()
+        currentBordaIndex = i
+        ApplyBordaColor(preset.main, preset.glow, preset.dark)
+        for _, c in ipairs(BordaButtonsContainer:GetChildren()) do
+            if c:IsA("TextButton") then
+                local s = c:FindFirstChildOfClass("UIStroke")
+                if s then s.Transparency = 0.6; s.Thickness = 1 end
+            end
+        end
+        local s = btn:FindFirstChildOfClass("UIStroke")
+        if s then s.Transparency = 0; s.Thickness = 2 end
+    end)
+    btn.MouseEnter:Connect(function()
+        Tween(btn, {Size = UDim2.new(0, 32, 0, 32)}, 0.15)
+    end)
+    btn.MouseLeave:Connect(function()
+        Tween(btn, {Size = UDim2.new(0, 28, 0, 28)}, 0.15)
+    end)
+end
+
 local BufferRow = Instance.new("Frame")
 BufferRow.Size = UDim2.new(1, 0, 0, 28)
-BufferRow.Position = UDim2.new(0, 0, 0, 392)
+BufferRow.Position = UDim2.new(0, 0, 0, 474)
 BufferRow.BackgroundColor3 = Colors.Panel
 BufferRow.BorderSizePixel = 0
 BufferRow.Parent = ContentFrame
@@ -1114,7 +1276,7 @@ BufferBtn.Size = UDim2.new(1, 0, 1, 0)
 BufferBtn.BackgroundTransparency = 1
 BufferBtn.Text = "Buffer: ON"
 BufferBtn.TextSize = 12
-BufferBtn.Font = Enum.Font.GothamMedium
+BufferBtn.Font = Enum.Font.SourceSansSemibold
 BufferBtn.TextColor3 = Colors.Green
 BufferBtn.TextXAlignment = Enum.TextXAlignment.Left
 BufferBtn.Parent = BufferRow
@@ -1154,7 +1316,7 @@ end)
 -- ═══════════════════════════════════════════════
 local StatusBar = Instance.new("Frame")
 StatusBar.Size = UDim2.new(1, 0, 0, 58)
-StatusBar.Position = UDim2.new(0, 0, 0, 368)
+StatusBar.Position = UDim2.new(0, 0, 0, 510)
 StatusBar.BackgroundColor3 = Colors.Panel
 StatusBar.BorderSizePixel = 0
 StatusBar.Parent = ContentFrame
@@ -1182,7 +1344,7 @@ StatusText.Position = UDim2.new(0, 32, 0, 10)
 StatusText.BackgroundTransparency = 1
 StatusText.Text = "Hitbox: Desativado"
 StatusText.TextSize = 12
-StatusText.Font = Enum.Font.GothamMedium
+StatusText.Font = Enum.Font.SourceSansSemibold
 StatusText.TextColor3 = Colors.TextSecondary
 StatusText.TextXAlignment = Enum.TextXAlignment.Left
 StatusText.Parent = StatusBar
@@ -1193,7 +1355,7 @@ InfoText.Position = UDim2.new(0, 16, 0, 34)
 InfoText.BackgroundTransparency = 1
 InfoText.Text = "RightShift = GUI | H = Hitbox"
 InfoText.TextSize = 10
-InfoText.Font = Enum.Font.Gotham
+InfoText.Font = Enum.Font.SourceSans
 InfoText.TextColor3 = Colors.TextMuted
 InfoText.TextXAlignment = Enum.TextXAlignment.Left
 InfoText.Parent = StatusBar
@@ -1203,7 +1365,7 @@ InfoText.Parent = StatusBar
 -- ═══════════════════════════════════════════════
 local DisclaimerBg = Instance.new("Frame")
 DisclaimerBg.Size = UDim2.new(1, 0, 0, 32)
-DisclaimerBg.Position = UDim2.new(0, 0, 0, 426)
+DisclaimerBg.Position = UDim2.new(0, 0, 0, 576)
 DisclaimerBg.BackgroundColor3 = Color3.fromRGB(35, 25, 25)
 DisclaimerBg.BorderSizePixel = 0
 DisclaimerBg.Parent = ContentFrame
@@ -1215,7 +1377,7 @@ DisclaimerText.Position = UDim2.new(0, 10, 0, 5)
 DisclaimerText.BackgroundTransparency = 1
 DisclaimerText.Text = "⚠️ Pode violar ToS do Roblox/jogo. Risco de BAN por sua conta. Modo conservador ON."
 DisclaimerText.TextSize = 10
-DisclaimerText.Font = Enum.Font.Gotham
+DisclaimerText.Font = Enum.Font.SourceSans
 DisclaimerText.TextColor3 = Color3.fromRGB(180, 140, 140)
 DisclaimerText.TextXAlignment = Enum.TextXAlignment.Center
 DisclaimerText.TextWrapped = true
@@ -1226,11 +1388,11 @@ DisclaimerText.Parent = DisclaimerBg
 -- ═══════════════════════════════════════════════
 local Footer = Instance.new("TextLabel")
 Footer.Size = UDim2.new(1, 0, 0, 24)
-Footer.Position = UDim2.new(0, 0, 0, 458)
+Footer.Position = UDim2.new(0, 0, 0, 612)
 Footer.BackgroundTransparency = 1
 Footer.Text = "⚡ Henrydangerkk • v1.4"
 Footer.TextSize = 11
-Footer.Font = Enum.Font.GothamMedium
+Footer.Font = Enum.Font.SourceSansSemibold
 Footer.TextColor3 = Colors.TextMuted
 Footer.TextXAlignment = Enum.TextXAlignment.Center
 Footer.Parent = ContentFrame
@@ -1245,7 +1407,7 @@ ToggleGuiBtn.BackgroundColor3 = Colors.Accent
 ToggleGuiBtn.BorderSizePixel = 0
 ToggleGuiBtn.Text = "🏐"
 ToggleGuiBtn.TextSize = 22
-ToggleGuiBtn.Font = Enum.Font.SourceSans
+ToggleGuiBtn.Font = Enum.Font.GothamBold
 ToggleGuiBtn.TextColor3 = Colors.TextPrimary
 ToggleGuiBtn.Visible = false
 ToggleGuiBtn.Parent = ScreenGui
