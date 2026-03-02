@@ -609,6 +609,7 @@ ScrollingFrame.ScrollBarImageColor3 = Colors.Accent
 ScrollingFrame.ScrollBarImageTransparency = 0.5
 ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 ScrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ScrollingFrame.ClipsDescendants = true
 ScrollingFrame.Parent = MainFrame
 CreateCorner(ScrollingFrame, 8)
 
@@ -1115,13 +1116,14 @@ BordaColorRow.Size = UDim2.new(1, -24, 0, 36)
 BordaColorRow.Position = UDim2.new(0, 12, 0, 430)
 BordaColorRow.BackgroundColor3 = Colors.Panel
 BordaColorRow.BorderSizePixel = 0
+BordaColorRow.ClipsDescendants = true
 BordaColorRow.Parent = ContentFrame
 CreateCorner(BordaColorRow, 8)
 CreateStroke(BordaColorRow, Color3.fromRGB(45, 45, 70), 1)
 
 local BordaLabel = Instance.new("TextLabel")
-BordaLabel.Size = UDim2.new(0, 80, 1, 0)
-BordaLabel.Position = UDim2.new(0, 10, 0, 0)
+BordaLabel.Size = UDim2.new(0, 72, 1, 0)
+BordaLabel.Position = UDim2.new(0, 8, 0, 0)
 BordaLabel.BackgroundTransparency = 1
 BordaLabel.Text = "Cor da borda"
 BordaLabel.TextSize = 11
@@ -1131,9 +1133,10 @@ BordaLabel.TextXAlignment = Enum.TextXAlignment.Left
 BordaLabel.Parent = BordaColorRow
 
 local BordaButtonsContainer = Instance.new("Frame")
-BordaButtonsContainer.Size = UDim2.new(1, -100, 1, -12)
-BordaButtonsContainer.Position = UDim2.new(0, 92, 0, 6)
+BordaButtonsContainer.Size = UDim2.new(1, -84, 1, -12)
+BordaButtonsContainer.Position = UDim2.new(0, 84, 0, 6)
 BordaButtonsContainer.BackgroundTransparency = 1
+BordaButtonsContainer.ClipsDescendants = true
 BordaButtonsContainer.LayoutOrder = 1
 BordaButtonsContainer.Parent = BordaColorRow
 
@@ -1141,7 +1144,7 @@ local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.FillDirection = Enum.FillDirection.Horizontal
 UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-UIListLayout.Padding = UDim.new(0, 6)
+UIListLayout.Padding = UDim.new(0, 4)
 UIListLayout.Parent = BordaButtonsContainer
 
 local currentBordaIndex = 1
@@ -1181,13 +1184,13 @@ end
 
 for i, preset in ipairs(BordaPresets) do
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 28, 0, 28)
+    btn.Size = UDim2.new(0, 22, 0, 22)
     btn.BackgroundColor3 = preset.main
     btn.BorderSizePixel = 0
     btn.Text = ""
     btn.LayoutOrder = i
     btn.Parent = BordaButtonsContainer
-    CreateCorner(btn, 14)
+    CreateCorner(btn, 11)
     local stroke = Instance.new("UIStroke")
     stroke.Color = Color3.fromRGB(255, 255, 255)
     stroke.Thickness = 1
@@ -1210,10 +1213,10 @@ for i, preset in ipairs(BordaPresets) do
         if s then s.Transparency = 0; s.Thickness = 2 end
     end)
     btn.MouseEnter:Connect(function()
-        Tween(btn, {Size = UDim2.new(0, 32, 0, 32)}, 0.15)
+        Tween(btn, {Size = UDim2.new(0, 24, 0, 24)}, 0.15)
     end)
     btn.MouseLeave:Connect(function()
-        Tween(btn, {Size = UDim2.new(0, 28, 0, 28)}, 0.15)
+        Tween(btn, {Size = UDim2.new(0, 22, 0, 22)}, 0.15)
     end)
 end
 
