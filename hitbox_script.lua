@@ -1403,6 +1403,54 @@ ToggleGuiBtn.MouseButton1Click:Connect(function()
     Tween(MainFrame, {Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, MAIN_WINDOW_HEIGHT)}, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 end)
 
+-- Hitbox: definido antes de UpdateToggleVisual para não dar "attempt to call a nil value"
+local cachedHitboxesFolder = nil
+local hitboxWaiterActive = false
+
+local function GetGameHitboxesFolder()
+    if cachedHitboxesFolder and cachedHitboxesFolder.Parent then return cachedHitboxesFolder end
+    cachedHitboxesFolder = nil
+    local assets = ReplicatedStorage:FindFirstChild(N1)
+    if assets then
+        local h = assets:FindFirstChild(N2)
+        if h and h:IsA("Folder") then cachedHitboxesFolder = h; return h end
+    end
+    local h = ReplicatedStorage:FindFirstChild(N2)
+    if h and h:IsA("Folder") then cachedHitboxesFolder = h; return h end
+    return nil
+end
+
+local function ApplyGameHitboxes(size)
+    local folder = GetGameHitboxesFolder()
+    if not folder then return false end
+    local s = (size == nil or size <= 0) and GAME_HITBOX_DEFAULT_SIZE or math.clamp(size, 1, MAX_HITBOX_SIZE)
+    local applied = 0
+    for _, action in ipairs(folder:GetChildren()) do
+        local part = action:FindFirstChild(N3) or action:FindFirstChild(N4) or action:FindFirstChildWhichIsA("BasePart")
+        if not part and action:IsA("Model") then part = action.PrimaryPart or action:FindFirstChildWhichIsA("BasePart") end
+        if not part and action:IsA("BasePart") then part = action end
+        if part and part:IsA("BasePart") then part.Size = Vector3.new(s, s, s); applied = applied + 1 end
+    end
+    return applied > 0
+end
+
+local function TryWaitForHitboxesFolder()
+    if hitboxWaiterActive or GetGameHitboxesFolder() then return end
+    hitboxWaiterActive = true
+    task.spawn(function()
+        local a = ReplicatedStorage:WaitForChild(N1, 6)
+        if a and Cleanup._active and HITBOX_ENABLED then
+            local h = a:WaitForChild(N2, 6)
+            if h and h:IsA("Folder") then
+                cachedHitboxesFolder = h
+                pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
+                if InfoText then InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")" end
+            end
+        end
+        hitboxWaiterActive = false
+    end)
+end
+
 -- ═══════════════════════════════════════════════
 -- KEYBINDS (teclas de atalho)
 -- ═══════════════════════════════════════════════
@@ -1532,87 +1580,7 @@ SyncSliderVisual()
 -- ═══════════════════════════════════════════════
 -- HITBOX IN-GAME (Volleyball Legends – por ação)
 -- ═══════════════════════════════════════════════
--- O jogo usa ReplicatedStorage.Assets.Hitboxes: cada ação (Spike, Bump, Dive,
--- Set, Serve, Block, JumpSet) tem uma Part. Redimensionamos essa Part para
--- o valor do slider (0–50). Assim, quando você usa BATIR / MERGULHO / etc.,
--- o alcance do toque na bola segue o tamanho que você definiu. Base em scripts
--- públicos (ex.: Sterling Hub).
-
--- Procura APENAS caminhos diretos (sem GetDescendants = sem detecção).
--- Volleyball Legends: ReplicatedStorage.Assets.Hitboxes (pasta pode aparecer ao entrar na partida).
-local cachedHitboxesFolder = nil
-local hitboxWaiterActive = false
-
-local function GetGameHitboxesFolder()
-    if cachedHitboxesFolder and cachedHitboxesFolder.Parent then
-        return cachedHitboxesFolder
-    end
-    cachedHitboxesFolder = nil
-    -- 1) Caminho padrão do jogo
-    local assets = ReplicatedStorage:FindFirstChild(N1)
-    if assets then
-        local h = assets:FindFirstChild(N2)
-        if h and h:IsA("Folder") then
-            cachedHitboxesFolder = h
-            return h
-        end
-    end
-    -- 2) Às vezes a pasta está na raiz do ReplicatedStorage
-    local h = ReplicatedStorage:FindFirstChild(N2)
-    if h and h:IsA("Folder") then
-        cachedHitboxesFolder = h
-        return h
-    end
-    return nil
-end
-
--- Quando a pasta ainda não existe (lobby), espera ela aparecer ao entrar na partida (sem bloquear).
-local function TryWaitForHitboxesFolder()
-    if hitboxWaiterActive or GetGameHitboxesFolder() then return end
-    hitboxWaiterActive = true
-    task.spawn(function()
-        local a = ReplicatedStorage:WaitForChild(N1, 6)
-        if a and Cleanup._active and HITBOX_ENABLED then
-            local h = a:WaitForChild(N2, 6)
-            if h and h:IsA("Folder") then
-                cachedHitboxesFolder = h
-                pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
-                if InfoText then InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")" end
-            end
-        end
-        hitboxWaiterActive = false
-    end)
-end
-
--- Aplica o tamanho (1 a 50 quando ligado; 0 = restaura padrão do jogo).
-local function ApplyGameHitboxes(size)
-    local folder = GetGameHitboxesFolder()
-    if not folder then return false end
-    local s
-    if size == nil or size <= 0 then
-        s = GAME_HITBOX_DEFAULT_SIZE
-    else
-        s = math.clamp(size, 1, MAX_HITBOX_SIZE)
-    end
-    local applied = 0
-    for _, action in ipairs(folder:GetChildren()) do
-        local part = action:FindFirstChild(N3) or action:FindFirstChild(N4) or action:FindFirstChildWhichIsA("BasePart")
-        if not part and action:IsA("Model") then
-            part = action.PrimaryPart or action:FindFirstChildWhichIsA("BasePart")
-        end
-        if not part and action:IsA("BasePart") then
-            part = action
-        end
-        if part and part:IsA("BasePart") then
-            part.Size = Vector3.new(s, s, s)
-            applied = applied + 1
-        end
-    end
-    if applied > 0 and DEBUG_ENABLED then
-        print("[Script] Hitbox aplicado: " .. applied .. " ações, alcance " .. s)
-    end
-    return applied > 0
-end
+-- GetGameHitboxesFolder, ApplyGameHitboxes, TryWaitForHitboxesFolder já definidos acima (antes de UpdateToggleVisual).
 
 local function GetCharacter()
     return LocalPlayer and LocalPlayer.Character
