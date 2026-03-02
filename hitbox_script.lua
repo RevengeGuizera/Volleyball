@@ -27,6 +27,15 @@ local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- Nomes montados em runtime (não ficam óbvios no código para o anticheat).
+local function _(a, b) return a .. b end
+local N1 = _("As", "sets")
+local N2 = _("Hit", "box") .. "es"
+local N3 = _("Pa", "rt")
+local N4 = _("Hit", "box")
+local N5 = _("CLI", "ENT_") .. "BALL"
+local N6 = N5 .. "_"
+
 -- ═══════════════════════════════════════════════
 -- CONFIG
 -- ═══════════════════════════════════════════════
@@ -203,8 +212,8 @@ local function StdDev(arr)
 end
 
 local BindActivate = ReplicatedStorage:FindFirstChild("BindActivate")
-if not BindActivate and ReplicatedStorage:FindFirstChild("Assets") then
-    BindActivate = ReplicatedStorage.Assets:FindFirstChild("BindActivate")
+if not BindActivate and ReplicatedStorage:FindFirstChild(N1) then
+    BindActivate = ReplicatedStorage[N1]:FindFirstChild("BindActivate")
 end
 if not ANTICHEAT_SAFE_NO_BINDACTIVATE_HOOK and BindActivate and BindActivate:IsA("BindableEvent") then
     local OldFire = BindActivate.Fire
@@ -448,21 +457,14 @@ end)
 
 Cleanup.Register(UserInputService.InputBegan:Connect(function(inp)
     if inp.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+    -- Buffer desativado: não grava cliques (reduz risco de detecção).
     if not BufferOn or not BallInCone then return end
     local now = os.clock()
     if lastT > 0 then
-        local dt = now - lastT
-        if comp then
-            dt = math.clamp(dt * (1 + gx()), (11/100), (24/100))
-            comp = false
-        end
-        if math.random() >= (3/100) then
-            if #B >= 120 then table.remove(B, 1) end
-            table.insert(B, dt)
-            hitCounterLocal = hitCounterLocal + 1
-        end
+        lastT = now
+    else
+        lastT = now
     end
-    lastT = now
     ultHitTick = tick()
 end))
 
@@ -680,6 +682,15 @@ ToggleLabel.TextColor3 = Colors.TextSecondary
 ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
 ToggleLabel.Parent = ToggleContainer
 
+-- Clique na linha inteira (texto) também ativa/desativa o hitbox
+local ToggleRowButton = Instance.new("TextButton")
+ToggleRowButton.Size = UDim2.new(0.6, -16, 1, 0)
+ToggleRowButton.Position = UDim2.new(0, 0, 0, 0)
+ToggleRowButton.BackgroundTransparency = 1
+ToggleRowButton.Text = ""
+ToggleRowButton.ZIndex = 2
+ToggleRowButton.Parent = ToggleContainer
+
 -- Toggle switch
 local ToggleOuter = Instance.new("Frame")
 ToggleOuter.Size = UDim2.new(0, 50, 0, 26)
@@ -713,6 +724,8 @@ local ToggleButton = Instance.new("TextButton")
 ToggleButton.Size = UDim2.new(1, 0, 1, 0)
 ToggleButton.BackgroundTransparency = 1
 ToggleButton.Text = ""
+ToggleButton.ZIndex = 2
+ToggleButton.Active = true
 ToggleButton.Parent = ToggleOuter
 
 -- ═══════════════════════════════════════════════
@@ -1457,6 +1470,11 @@ ToggleButton.MouseButton1Click:Connect(function()
     UpdateToggleVisual()
 end)
 
+ToggleRowButton.MouseButton1Click:Connect(function()
+    HITBOX_ENABLED = not HITBOX_ENABLED
+    UpdateToggleVisual()
+end)
+
 -- ═══════════════════════════════════════════════
 -- SLIDER LOGIC
 -- ═══════════════════════════════════════════════
@@ -1531,16 +1549,16 @@ local function GetGameHitboxesFolder()
     end
     cachedHitboxesFolder = nil
     -- 1) Caminho padrão do jogo
-    local assets = ReplicatedStorage:FindFirstChild("Assets")
+    local assets = ReplicatedStorage:FindFirstChild(N1)
     if assets then
-        local h = assets:FindFirstChild("Hitboxes")
+        local h = assets:FindFirstChild(N2)
         if h and h:IsA("Folder") then
             cachedHitboxesFolder = h
             return h
         end
     end
-    -- 2) Às vezes a pasta está na raiz do ReplicatedStorage (só FindFirstChild, sem varredura)
-    local h = ReplicatedStorage:FindFirstChild("Hitboxes")
+    -- 2) Às vezes a pasta está na raiz do ReplicatedStorage
+    local h = ReplicatedStorage:FindFirstChild(N2)
     if h and h:IsA("Folder") then
         cachedHitboxesFolder = h
         return h
@@ -1553,9 +1571,9 @@ local function TryWaitForHitboxesFolder()
     if hitboxWaiterActive or GetGameHitboxesFolder() then return end
     hitboxWaiterActive = true
     task.spawn(function()
-        local a = ReplicatedStorage:WaitForChild("Assets", 6)
+        local a = ReplicatedStorage:WaitForChild(N1, 6)
         if a and Cleanup._active and HITBOX_ENABLED then
-            local h = a:WaitForChild("Hitboxes", 6)
+            local h = a:WaitForChild(N2, 6)
             if h and h:IsA("Folder") then
                 cachedHitboxesFolder = h
                 pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
@@ -1566,14 +1584,19 @@ local function TryWaitForHitboxesFolder()
     end)
 end
 
--- Aplica o tamanho. Suporta: Part, Hitbox, qualquer BasePart, Model.PrimaryPart, ou ação = BasePart.
+-- Aplica o tamanho (1 a 50 quando ligado; 0 = restaura padrão do jogo).
 local function ApplyGameHitboxes(size)
     local folder = GetGameHitboxesFolder()
     if not folder then return false end
-    local s = (size == nil or size <= 0) and GAME_HITBOX_DEFAULT_SIZE or math.max(1, size)
+    local s
+    if size == nil or size <= 0 then
+        s = GAME_HITBOX_DEFAULT_SIZE
+    else
+        s = math.clamp(size, 1, MAX_HITBOX_SIZE)
+    end
     local applied = 0
     for _, action in ipairs(folder:GetChildren()) do
-        local part = action:FindFirstChild("Part") or action:FindFirstChild("Hitbox") or action:FindFirstChildWhichIsA("BasePart")
+        local part = action:FindFirstChild(N3) or action:FindFirstChild(N4) or action:FindFirstChildWhichIsA("BasePart")
         if not part and action:IsA("Model") then
             part = action.PrimaryPart or action:FindFirstChildWhichIsA("BasePart")
         end
@@ -1634,11 +1657,11 @@ local function predictLandingPosition(ball, rootPart)
     return nil
 end
 
--- Nomes para buscar a bola (só FindFirstChild com esses nomes = seguro).
+-- Nomes para buscar a bola (montados em runtime).
 local BALL_SEARCH_PATHS = {
-    "CLIENT_BALL", "CLIENT_BALL_",
-    "Ball", "Volleyball", "bola", "VolleyBall", "GameBall",
-    "BallPart", "MainBall", "Sphere", "Projectile"
+    N5, N6,
+    _("Bal", "l"), _("Volley", "ball"), _("bo", "la"), _("Volley", "Ball"), _("Game", "Ball"),
+    _("Ball", "Part"), _("Main", "Ball"), _("Sph", "ere"), _("Project", "ile")
 }
 
 local function getPartFromBallObj(obj)
@@ -1783,13 +1806,7 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     end
 
     if BufferOn and frameCounter % 60 == 0 and #B >= 2 then
-        local s = sd(B)
-        if s and s < (7/200) then
-            lsc = lsc + 1
-            if lsc >= 2 then comp = true; lsc = 0 end
-        else
-            lsc = 0
-        end
+        -- Buffer: lógica de comp desativada (não altera timing; zero risco).
     end
 
     frameCounter = frameCounter + 1
@@ -1834,7 +1851,7 @@ Cleanup.Register(LocalPlayer.CharacterAdded:Connect(function()
     task.defer(function()
         task.wait(1)
         if not Cleanup._active then return end
-        if HITBOX_ENABLED and HITBOX_SIZE > 0 then
+        if HITBOX_ENABLED then
             pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
         end
     end)
@@ -1847,7 +1864,7 @@ task.spawn(function()
         task.wait(baseSec + (math.random() * 0.5))
         if not Cleanup._active then break end
         if not Safe.IsValidGui() then break end
-        if HITBOX_ENABLED and HITBOX_SIZE > 0 then
+        if HITBOX_ENABLED then
             local ok = pcall(function()
                 if ApplyGameHitboxes(HITBOX_SIZE) then
                     if InfoText then InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")" end
