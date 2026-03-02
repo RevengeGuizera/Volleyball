@@ -2,10 +2,9 @@
     ╔══════════════════════════════════════════════╗
     ║     VOLLEYBALL LEGENDS — Hitbox & ESP         ║
     ║           Criador: Henrydangerkk             ║
-    ║       Executor: Velocity Compatible          ║
+    ║              v1.5 Final • Modo seguro         ║
     ╚══════════════════════════════════════════════╝
-    Colar em StarterPlayer > StarterPlayerScripts (ou use load_volleyball_legends.lua
-    para carregar por URL e colar só o loader — pode reduzir ban).
+    Sem GetDescendants, sem escrita em ReplicatedStorage.
     Teclas: RightShift = GUI | H = Hitbox
 ]]
 
@@ -58,23 +57,18 @@ local KEYBIND_TOGGLE_HITBOX = Enum.KeyCode.H
 local GAME_HITBOX_DEFAULT_SIZE = 10
 
 -- ═══════════════════════════════════════════════
--- CONFIG ANTICHEAT / QUESTÃO BANIMENTO
--- Hitbox e wallhack 100%. Para durar mais (tipo Sterling ~5 dias): não escrever em
--- ReplicatedStorage; não usar GetDescendants no ReplicatedStorage; só caminho direto Assets.Hitboxes.
--- BAN APÓS 1 USO: este script estava criando/escrevendo no ReplicatedStorage e usando
--- GetDescendants(ReplicatedStorage) — isso pode ser detectado. Removido. Só usamos Assets.Hitboxes.
+-- CONFIG ANTICHEAT — MODO SEGURO (reduz chance de ban)
 -- ═══════════════════════════════════════════════
--- NÃO escreve no ReplicatedStorage. Deixe true.
+-- Regras: (1) NUNCA escrever em ReplicatedStorage
+--         (2) NUNCA usar GetDescendants no ReplicatedStorage
+--         (3) Hitbox só por FindFirstChild/WaitForChild em Assets.Hitboxes
+--         (4) Bola só por FindFirstChild(nome, true) com nomes conhecidos
+--         (5) Ball pull OFF (servidor detecta)
 local ANTICHEAT_SAFE_NO_REPLICATED_WRITE = true
--- true = NÃO faz hook no BindActivate (muito exposto). Hitbox e ESP não dependem disso.
 local ANTICHEAT_SAFE_NO_BINDACTIVATE_HOOK = true
--- Pull da bola a cada N frames (só se DISABLE_BALL_PULL = false)
 local BALL_PULL_FRAME_INTERVAL = 2
--- Variação no intervalo de reaplicar hitbox (evita intervalo fixo)
 local HITBOX_REAPPLY_JITTER_MAX = 0.8
--- Base do intervalo de reaplicar hitbox (segundos). Como antes: ~2s.
-local HITBOX_REAPPLY_BASE_SEC = 2
--- true = NÃO puxa a bola (muito exposto; servidor detecta). Hitbox expandida continua igual.
+local HITBOX_REAPPLY_BASE_SEC = 1
 local ANTICHEAT_DISABLE_BALL_PULL = true
 
 -- ═══════════════════════════════════════════════
@@ -1347,7 +1341,7 @@ local Footer = Instance.new("TextLabel")
 Footer.Size = UDim2.new(1, 0, 0, 24)
 Footer.Position = UDim2.new(0, 0, 0, 612)
 Footer.BackgroundTransparency = 1
-Footer.Text = "⚡ Henrydangerkk • v1.4"
+Footer.Text = "⚡ Henrydangerkk • v1.5 Final"
 Footer.TextSize = 11
 Footer.Font = Enum.Font.SourceSansSemibold
 Footer.TextColor3 = Colors.TextMuted
@@ -1427,6 +1421,8 @@ end))
 -- ═══════════════════════════════════════════════
 local function UpdateToggleVisual()
     if HITBOX_ENABLED then
+        cachedHitboxesFolder = nil
+        TryWaitForHitboxesFolder()
         Tween(ToggleKnob, {Position = UDim2.new(1, -23, 0.5, -10), BackgroundColor3 = Colors.TextPrimary}, 0.25)
         Tween(ToggleOuter, {BackgroundColor3 = Colors.Accent}, 0.25)
         StatusLabel.Text = "ON"
@@ -1524,14 +1520,17 @@ SyncSliderVisual()
 -- o alcance do toque na bola segue o tamanho que você definiu. Base em scripts
 -- públicos (ex.: Sterling Hub).
 
--- Procura a pasta Hitboxes (como era antes: direto e depois em todo o ReplicatedStorage se precisar).
+-- Procura APENAS caminhos diretos (sem GetDescendants = sem detecção).
+-- Volleyball Legends: ReplicatedStorage.Assets.Hitboxes (pasta pode aparecer ao entrar na partida).
 local cachedHitboxesFolder = nil
+local hitboxWaiterActive = false
 
 local function GetGameHitboxesFolder()
     if cachedHitboxesFolder and cachedHitboxesFolder.Parent then
         return cachedHitboxesFolder
     end
     cachedHitboxesFolder = nil
+    -- 1) Caminho padrão do jogo
     local assets = ReplicatedStorage:FindFirstChild("Assets")
     if assets then
         local h = assets:FindFirstChild("Hitboxes")
@@ -1540,23 +1539,47 @@ local function GetGameHitboxesFolder()
             return h
         end
     end
-    for _, child in ipairs(ReplicatedStorage:GetDescendants()) do
-        if child.Name == "Hitboxes" and child:IsA("Folder") then
-            cachedHitboxesFolder = child
-            return child
-        end
+    -- 2) Às vezes a pasta está na raiz do ReplicatedStorage (só FindFirstChild, sem varredura)
+    local h = ReplicatedStorage:FindFirstChild("Hitboxes")
+    if h and h:IsA("Folder") then
+        cachedHitboxesFolder = h
+        return h
     end
     return nil
 end
 
--- Aplica o tamanho (como antes: direto em cada Part).
+-- Quando a pasta ainda não existe (lobby), espera ela aparecer ao entrar na partida (sem bloquear).
+local function TryWaitForHitboxesFolder()
+    if hitboxWaiterActive or GetGameHitboxesFolder() then return end
+    hitboxWaiterActive = true
+    task.spawn(function()
+        local a = ReplicatedStorage:WaitForChild("Assets", 6)
+        if a and Cleanup._active and HITBOX_ENABLED then
+            local h = a:WaitForChild("Hitboxes", 6)
+            if h and h:IsA("Folder") then
+                cachedHitboxesFolder = h
+                pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
+                if InfoText then InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")" end
+            end
+        end
+        hitboxWaiterActive = false
+    end)
+end
+
+-- Aplica o tamanho. Suporta: Part, Hitbox, qualquer BasePart, Model.PrimaryPart, ou ação = BasePart.
 local function ApplyGameHitboxes(size)
     local folder = GetGameHitboxesFolder()
     if not folder then return false end
     local s = (size == nil or size <= 0) and GAME_HITBOX_DEFAULT_SIZE or math.max(1, size)
     local applied = 0
     for _, action in ipairs(folder:GetChildren()) do
-        local part = action:FindFirstChild("Part") or action:FindFirstChildWhichIsA("BasePart")
+        local part = action:FindFirstChild("Part") or action:FindFirstChild("Hitbox") or action:FindFirstChildWhichIsA("BasePart")
+        if not part and action:IsA("Model") then
+            part = action.PrimaryPart or action:FindFirstChildWhichIsA("BasePart")
+        end
+        if not part and action:IsA("BasePart") then
+            part = action
+        end
         if part and part:IsA("BasePart") then
             part.Size = Vector3.new(s, s, s)
             applied = applied + 1
@@ -1611,17 +1634,9 @@ local function predictLandingPosition(ball, rootPart)
     return nil
 end
 
--- Find the ball object in workspace
--- Volleyball Legends: bola = CLIENT_BALL ou CLIENT_BALL_ (Model ou Part). Velocity compatible.
-local cachedBall = nil
-local lastBallSearch = 0
--- Busca pesada (GetDescendants) só a cada 2.5s para não expor padrão
-local BALL_HEAVY_SEARCH_INTERVAL = 2.5
-local lastHeavyBallSearch = 0
-
--- Nomes específicos do Volleyball Legends primeiro; depois genéricos
+-- Nomes para buscar a bola (só FindFirstChild com esses nomes = seguro).
 local BALL_SEARCH_PATHS = {
-    "CLIENT_BALL", "CLIENT_BALL_",  -- Volleyball Legends (objeto da bola no workspace)
+    "CLIENT_BALL", "CLIENT_BALL_",
     "Ball", "Volleyball", "bola", "VolleyBall", "GameBall",
     "BallPart", "MainBall", "Sphere", "Projectile"
 }
@@ -1640,6 +1655,12 @@ local function getPartFromBallObj(obj)
     return nil
 end
 
+-- Find the ball object in workspace.
+-- Modo seguro: só FindFirstChild(nome, true), sem GetDescendants.
+-- Volleyball Legends: CLIENT_BALL / CLIENT_BALL_
+local cachedBall = nil
+local lastBallSearch = 0
+
 local function FindBall()
     if cachedBall and cachedBall.Parent then
         return cachedBall
@@ -1651,53 +1672,16 @@ local function FindBall()
     end
     lastBallSearch = now
 
-    -- 1) Volleyball Legends: CLIENT_BALL / CLIENT_BALL_
-    for _, name in ipairs({"CLIENT_BALL", "CLIENT_BALL_"}) do
-        local obj = workspace:FindFirstChild(name, true)
-        local part = getPartFromBallObj(obj)
-        if part then
-            cachedBall = part
-            return part
-        end
-    end
-
-    -- 2) Outros caminhos comuns
+    -- Só nomes conhecidos (FindFirstChild recursivo = seguro, sem varredura).
     for _, pathName in ipairs(BALL_SEARCH_PATHS) do
-        if pathName == "CLIENT_BALL" or pathName == "CLIENT_BALL_" then
-        else
-            local obj = workspace:FindFirstChild(pathName, true)
-            if obj and obj:IsA("BasePart") then
-                if obj.Size.Magnitude < 20 and obj.Size.Magnitude > 0.5 then
-                    cachedBall = obj
-                    return obj
-                end
+        local obj = workspace:FindFirstChild(pathName, true)
+        if obj then
+            local part = getPartFromBallObj(obj)
+            if part then
+                cachedBall = part
+                return part
             end
-        end
-    end
-
-    -- 3 e 4) Busca pesada (GetDescendants) só de vez em quando
-    if now - lastHeavyBallSearch < BALL_HEAVY_SEARCH_INTERVAL then
-        return nil
-    end
-    lastHeavyBallSearch = now
-
-    -- 3) Busca por nome em todos os descendants
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            local name = obj.Name:lower()
-            if name:find("ball") or name:find("volley") or name:find("bola") or name:find("sphere") or name:find("projectile") then
-                if obj.Size.Magnitude < 20 and obj.Size.Magnitude > 0.5 then
-                    cachedBall = obj
-                    return obj
-                end
-            end
-        end
-    end
-
-    -- 4) Partes Part com Shape = Ball
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Part") and obj.Shape == Enum.PartType.Ball then
-            if obj.Size.Magnitude < 20 and obj.Size.Magnitude > 0.5 then
+            if obj:IsA("BasePart") and obj.Size.Magnitude < 20 and obj.Size.Magnitude > 0.5 then
                 cachedBall = obj
                 return obj
             end
@@ -1708,45 +1692,16 @@ local function FindBall()
 end
 
 -- ═══════════════════════════════════════════════
--- DEBUG: Print ALL workspace objects (run once)
+-- DEBUG (só com DEBUG_ENABLED = true; usa só GetChildren, sem GetDescendants)
 -- ═══════════════════════════════════════════════
 local debugRan = not DEBUG_ENABLED
 local function DebugPrintObjects()
     if debugRan then return end
     debugRan = true
-
-    print("[Madara877fa] 🔍 DEBUG — Scanning ALL workspace descendants...")
-    local partCount = 0
-    local modelCount = 0
-    
-    -- Print top-level children first
-    print("[Madara877fa] 📁 Top-level workspace children:")
+    print("[VL] Debug: Top-level workspace:")
     for _, child in ipairs(workspace:GetChildren()) do
-        print(string.format("  [%s] %s", child.ClassName, child.Name))
+        print("  " .. child.ClassName .. " " .. child.Name)
     end
-    
-    -- Scan ALL BaseParts
-    print("[Madara877fa] 📦 All BaseParts in workspace:")
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            partCount = partCount + 1
-            -- Print everything to find the ball
-            if partCount <= 100 then
-                local shape = ""
-                if obj:IsA("Part") then
-                    shape = " Shape:" .. tostring(obj.Shape)
-                end
-                print(string.format("  [Part] %s | Size: %s%s | Path: %s",
-                    obj.Name, tostring(obj.Size), shape,
-                    obj:GetFullName()
-                ))
-            end
-        elseif obj:IsA("Model") then
-            modelCount = modelCount + 1
-        end
-    end
-    
-    print(string.format("[Madara877fa] 📊 Total: %d BaseParts, %d Models", partCount, modelCount))
 end
 
 -- ═══════════════════════════════════════════════
@@ -1885,19 +1840,20 @@ Cleanup.Register(LocalPlayer.CharacterAdded:Connect(function()
     end)
 end))
 
--- Reaplica hitboxes a cada ~2s quando ON (como era antes).
+-- Reaplica hitboxes a cada ~1s quando ON. Se a pasta não existir (lobby), espera aparecer na partida.
 task.spawn(function()
     while Cleanup._active do
-        local baseSec = (type(HITBOX_REAPPLY_BASE_SEC) == "number" and HITBOX_REAPPLY_BASE_SEC > 0) and HITBOX_REAPPLY_BASE_SEC or 2
+        local baseSec = (type(HITBOX_REAPPLY_BASE_SEC) == "number" and HITBOX_REAPPLY_BASE_SEC > 0) and HITBOX_REAPPLY_BASE_SEC or 1
         task.wait(baseSec + (math.random() * 0.5))
         if not Cleanup._active then break end
         if not Safe.IsValidGui() then break end
         if HITBOX_ENABLED and HITBOX_SIZE > 0 then
             local ok = pcall(function()
                 if ApplyGameHitboxes(HITBOX_SIZE) then
-                    InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")"
+                    if InfoText then InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")" end
                 else
-                    InfoText.Text = "Entre numa partida para ativar hitbox"
+                    if InfoText then InfoText.Text = "Entre numa partida para ativar hitbox" end
+                    TryWaitForHitboxesFolder()
                 end
             end)
             if not ok and InfoText then
