@@ -1558,6 +1558,86 @@ end
 local cachedBall = nil
 local lastBallSearch = 0
 
+local function isPartOfCharacter(part)
+    if not part then return false end
+    local p = part.Parent
+    while p and p ~= workspace do
+        if p:IsA("Model") and p:FindFirstChild("Humanoid") then return true end
+        p = p.Parent
+    end
+    return false
+end
+
+local function looksLikeSphere(part)
+    if not part or not part:IsA("BasePart") then return false end
+    local s = part.Size
+    local a, b, c = s.X, s.Y, s.Z
+    if a < 0.4 or a > 12 or b < 0.4 or b > 12 or c < 0.4 or c > 12 then return false end
+    local min, max = math.min(a, b, c), math.max(a, b, c)
+    return (max - min) <= 2
+end
+
+local function findBallByShape()
+    local root = GetRootPart()
+    local myPos = root and root.Parent and root.Position or Vector3.new(0, 0, 0)
+    local netPos = nil
+    do
+        local netNames = {"Net", "Rede", "RedeVolei", "VolleyballNet", "Middle", "Nets"}
+        for _, nn in ipairs(netNames) do
+            local obj = workspace:FindFirstChild(nn, true)
+            if obj then
+                if obj:IsA("BasePart") then netPos = obj.Position break end
+                if obj:IsA("Model") and obj.PrimaryPart then netPos = obj.PrimaryPart.Position break end
+                local p = obj:FindFirstChildWhichIsA("BasePart")
+                if p then netPos = p.Position break end
+            end
+        end
+    end
+    local candidates = {}
+    for _, a in ipairs(workspace:GetChildren()) do
+        if a:IsA("BasePart") and not isPartOfCharacter(a) and looksLikeSphere(a) then
+            candidates[#candidates + 1] = a
+        end
+        if not a:IsA("BasePart") then
+            for _, b in ipairs(a:GetChildren()) do
+                if b:IsA("BasePart") and not isPartOfCharacter(b) and looksLikeSphere(b) then
+                    candidates[#candidates + 1] = b
+                end
+                if not b:IsA("BasePart") then
+                    for _, c in ipairs(b:GetChildren()) do
+                        if c:IsA("BasePart") and not isPartOfCharacter(c) and looksLikeSphere(c) then
+                            candidates[#candidates + 1] = c
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if #candidates == 0 then return nil end
+    if #candidates == 1 then return candidates[1] end
+    local best = candidates[1]
+    local bestScore = -1
+    for i = 1, #candidates do
+        local p = candidates[i]
+        local vel = 0
+        if p.AssemblyLinearVelocity then vel = p.AssemblyLinearVelocity.Magnitude
+        elseif p.Velocity then vel = p.Velocity.Magnitude end
+        local score = vel * 3
+        if netPos and p.Parent then
+            local distNet = (p.Position - netPos).Magnitude
+            score = score + 80 / (1 + math.min(distNet, 50))
+        end
+        local distMe = (p.Position - myPos).Magnitude
+        score = score - distMe * 0.02
+        if vel > 12 then score = score + 150 end
+        if score > bestScore then
+            bestScore = score
+            best = p
+        end
+    end
+    return best
+end
+
 local function FindBall()
     if cachedBall and cachedBall.Parent then
         return cachedBall
@@ -1606,9 +1686,14 @@ local function FindBall()
         end
     end
 
+    local byShape = findBallByShape()
+    if byShape then
+        cachedBall = byShape
+        return byShape
+    end
+
     return nil
 end
-local debugRan = not DEBUG_ENABLED
 local function DebugPrintObjects()
     if debugRan then return end
     debugRan = true
