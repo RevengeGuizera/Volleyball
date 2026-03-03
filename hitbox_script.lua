@@ -1,18 +1,5 @@
---[[
-    ╔══════════════════════════════════════════════╗
-    ║     VOLLEYBALL LEGENDS — Hitbox & ESP         ║
-    ║           Criador: Henrydangerkk             ║
-    ║              v1.5 Final • Modo seguro         ║
-    ╚══════════════════════════════════════════════╝
-    Sem GetDescendants, sem escrita em ReplicatedStorage.
-    Teclas: RightShift = GUI | H = Hitbox
-]]
-
--- Verificação do ambiente (game no Roblox é userdata, não table)
-if game == nil or type(game.GetService) ~= "function" then
-    warn("[Volleyball Legends] Execute com um executor que suporte Roblox (game, GetService).")
-    return
-end
+--[[ v1.5 ]]
+if game == nil or type(game.GetService) ~= "function" then return end
 
 -- ═══════════════════════════════════════════════
 -- SERVICES
@@ -26,8 +13,10 @@ local LocalPlayer = Players.LocalPlayer
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
--- Nomes montados em runtime (não ficam óbvios no código para o anticheat).
+local RS_ = ReplicatedStorage
+local R = {}
+function R.F(name) return RS_ and RS_:FindFirstChild(name) or nil end
+function R.W(name, t) return RS_ and RS_:WaitForChild(name, t or 10) or nil end
 local function _(a, b) return a .. b end
 local N1 = _("As", "sets")
 local N2 = _("Hit", "box") .. "es"
@@ -35,53 +24,24 @@ local N3 = _("Pa", "rt")
 local N4 = _("Hit", "box")
 local N5 = _("CLI", "ENT_") .. "BALL"
 local N6 = N5 .. "_"
-
--- ═══════════════════════════════════════════════
--- CONFIG
--- ═══════════════════════════════════════════════
---[[
-  CONFIG LEGIT (exemplo para rankeadas / menos óbvio):
-  - Hitbox: 20 (um pouco maior que o padrão ~10, ajuda a pegar bolas no limite)
-  - Aim Reck: ON (marcador de queda — qualquer direção, para ajudar na recepção e aos amigos)
-  - Cone da bola: ON (ajuda timing do batimento, não revela onde vai cair)
-  - ESP: OFF (wallhack chama atenção em ranked)
-  - Buffer: ON (ajusta timing sutilmente)
-  - Ball pull: OFF (já está em ANTICHEAT_DISABLE_BALL_PULL = true)
-]]
 local HITBOX_ENABLED = false
 local HITBOX_SIZE = 0
 local MIN_HITBOX_SIZE = 0
-local MAX_HITBOX_SIZE = 50
-local BALL_SEARCH_INTERVAL = 0.5
+local MAX_HITBOX_SIZE = 35
+local BALL_SEARCH_INTERVAL = 0.35
 local DEBUG_ENABLED = false
--- Distância (em studs) para onde a bola é puxada em direção ao jogador
 local PULL_DISTANCE = 2
--- Suavização do movimento da bola (0 = instantâneo, 1 = muito lento)
 local BALL_LERP_SPEED = 0.25
--- Tecla para abrir/fechar a GUI (Enum.KeyCode)
 local KEYBIND_TOGGLE_GUI = Enum.KeyCode.RightShift
--- Tecla para ligar/desligar hitbox rapidamente (opcional, nil = desativado)
 local KEYBIND_TOGGLE_HITBOX = Enum.KeyCode.H
--- Tamanho padrão do hitbox do jogo quando o módulo está OFF (Volleyball Legends usa ~10)
 local GAME_HITBOX_DEFAULT_SIZE = 10
-
--- ═══════════════════════════════════════════════
--- CONFIG ANTICHEAT — MODO SEGURO (reduz chance de ban)
--- ═══════════════════════════════════════════════
--- Regras: (1) NUNCA escrever em ReplicatedStorage
---         (2) NUNCA usar GetDescendants no ReplicatedStorage
---         (3) Hitbox só por FindFirstChild/WaitForChild em Assets.Hitboxes
---         (4) Bola só por FindFirstChild(nome, true) com nomes conhecidos
---         (5) Ball pull OFF (servidor detecta)
+local BALL_PULL_FRAME_INTERVAL = 2
+local ANTICHEAT_DISABLE_BALL_PULL = true
 local ANTICHEAT_SAFE_NO_REPLICATED_WRITE = true
 local ANTICHEAT_SAFE_NO_BINDACTIVATE_HOOK = true
-local BALL_PULL_FRAME_INTERVAL = 2
-local HITBOX_REAPPLY_JITTER_MAX = 0.8
-local HITBOX_REAPPLY_BASE_SEC = 1
-local ANTICHEAT_DISABLE_BALL_PULL = true
 
 -- ═══════════════════════════════════════════════
--- COLOR PALETTE (Premium Dark Theme)
+-- COLOR PALETTE
 -- ═══════════════════════════════════════════════
 local Colors = {
     Background = Color3.fromRGB(15, 15, 25),
@@ -114,8 +74,7 @@ local BordaPresets = {
 }
 
 -- ═══════════════════════════════════════════════
--- CAMADA ANTI-DETECÇÃO (por fora — não mexe em hitbox nem wallhack)
--- Nomes aleatórios + atraso opcional para não parecer script injetado no join.
+-- CAMADA INICIAL
 -- ═══════════════════════════════════════════════
 local function _RandomName(prefix, len)
     local s = prefix or ""
@@ -126,10 +85,8 @@ local function _RandomName(prefix, len)
     end
     return s
 end
--- Atraso antes de mostrar GUI e aplicar hitbox (segundos).
--- 0,0 = como antes: janela e hitbox na hora.
-local ANTIDETECT_START_DELAY_MIN = 0
-local ANTIDETECT_START_DELAY_MAX = 0
+local ANTIDETECT_START_DELAY_MIN = 0.5
+local ANTIDETECT_START_DELAY_MAX = 1.5
 local scriptStartTime
 if ANTIDETECT_START_DELAY_MIN == 0 and ANTIDETECT_START_DELAY_MAX == 0 then
     scriptStartTime = 0
@@ -140,8 +97,6 @@ local GUI_PUBLIC_NAME = _RandomName("", 12)
 local ESP_PUBLIC_NAME = _RandomName("", 10)
 
 -- ═══════════════════════════════════════════════
--- ANTI-DUPLICATE: Remove old GUI if re-executing (por estrutura, não por nome)
--- ═══════════════════════════════════════════════
 for _, child in ipairs(CoreGui:GetChildren()) do
     if child:IsA("ScreenGui") and child:FindFirstChild("MainFrame") then
         child:Destroy()
@@ -149,8 +104,6 @@ for _, child in ipairs(CoreGui:GetChildren()) do
     end
 end
 
--- ═══════════════════════════════════════════════
--- MÓDULO CLEANUP (boas práticas: desconectar tudo e restaurar estado)
 -- ═══════════════════════════════════════════════
 local Cleanup = {}
 Cleanup._active = true
@@ -211,9 +164,10 @@ local function StdDev(arr)
     return math.sqrt(v / (n - 1))
 end
 
-local BindActivate = ReplicatedStorage:FindFirstChild("BindActivate")
-if not BindActivate and ReplicatedStorage:FindFirstChild(N1) then
-    BindActivate = ReplicatedStorage[N1]:FindFirstChild("BindActivate")
+local BindActivate = R.F("BindActivate")
+if not BindActivate then
+    local a1 = R.F(N1)
+    if a1 then BindActivate = a1:FindFirstChild("BindActivate") end
 end
 if not ANTICHEAT_SAFE_NO_BINDACTIVATE_HOOK and BindActivate and BindActivate:IsA("BindableEvent") then
     local OldFire = BindActivate.Fire
@@ -262,6 +216,8 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = GUI_PUBLIC_NAME
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 100
+ScreenGui.IgnoreGuiInset = true
 
 -- Try CoreGui first (executor), fallback to PlayerGui
 pcall(function()
@@ -308,8 +264,6 @@ local function Tween(obj, props, duration, style, direction)
     return tween
 end
 
--- ═══════════════════════════════════════════════
--- MAIN WINDOW (maior — espaço para conteúdo e decoração)
 -- ═══════════════════════════════════════════════
 local MAIN_WINDOW_WIDTH = 380
 local MAIN_WINDOW_HEIGHT = 730
@@ -373,7 +327,6 @@ BallConeStroke.Thickness = 2
 BallConeStroke.Color = Color3.new(1, 0.9, 0.2)
 BallConeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 BallConeStroke.Parent = BallConeOutline
--- Marcador Aim Reck (onde a bola vai cair — recepção / ajudar amigos)
 local AimReckMarker = Instance.new("Frame")
 AimReckMarker.Name = "AimReckMarker"
 AimReckMarker.Size = UDim2.new(0, 52, 0, 52)
@@ -420,15 +373,7 @@ local function rndName()
 end
 
 local DbgSv = nil
--- Nunca criar nem escrever no ReplicatedStorage (causa ban rápido). Sterling não fazia isso.
-if not ANTICHEAT_SAFE_NO_REPLICATED_WRITE then
-    DbgSv = ReplicatedStorage:FindFirstChild("Dbg")
-    if not DbgSv or not DbgSv:IsA("StringValue") then
-        DbgSv = Instance.new("StringValue")
-        DbgSv.Name = rndName()
-        DbgSv.Parent = ReplicatedStorage
-    end
-end
+if not ANTICHEAT_SAFE_NO_REPLICATED_WRITE then DbgSv = R.F("Dbg") end
 
 local function gx()
     local u1, u2 = math.random(), math.random()
@@ -627,10 +572,6 @@ ContentFrame.AutomaticSize = Enum.AutomaticSize.Y
 ContentFrame.Parent = ScrollingFrame
 
 -- ═══════════════════════════════════════════════
--- HITBOX MODULE SECTION
--- ═══════════════════════════════════════════════
-
--- Section Header (Hitbox)
 local SectionHeader = Instance.new("Frame")
 SectionHeader.Size = UDim2.new(1, 0, 0, 38)
 SectionHeader.Position = UDim2.new(0, 0, 0, 0)
@@ -691,7 +632,6 @@ ToggleLabel.TextColor3 = Colors.TextSecondary
 ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
 ToggleLabel.Parent = ToggleContainer
 
--- Clique na linha inteira (texto) também ativa/desativa o hitbox
 local ToggleRowButton = Instance.new("TextButton")
 ToggleRowButton.Size = UDim2.new(0.6, -16, 1, 0)
 ToggleRowButton.Position = UDim2.new(0, 0, 0, 0)
@@ -846,8 +786,6 @@ SliderButton.ZIndex = 4
 SliderButton.Parent = SliderTrack
 
 -- ═══════════════════════════════════════════════
--- AIM RECK (Onde a bola vai cair — recepção / ajudar amigos)
--- ═══════════════════════════════════════════════
 local ReckSectionHeader = Instance.new("Frame")
 ReckSectionHeader.Size = UDim2.new(1, 0, 0, 38)
 ReckSectionHeader.Position = UDim2.new(0, 0, 0, 188)
@@ -949,8 +887,6 @@ ReckToggleOuter.MouseLeave:Connect(function()
     if not AIM_RECK_ENABLED then Tween(ReckToggleOuter, {BackgroundColor3 = Colors.SliderBg}, 0.2) end
 end)
 
--- ═══════════════════════════════════════════════
--- PLAYER ESP (Wallhack)
 -- ═══════════════════════════════════════════════
 local EspSectionHeader = Instance.new("Frame")
 EspSectionHeader.Size = UDim2.new(1, 0, 0, 38)
@@ -1370,9 +1306,6 @@ Footer.TextColor3 = Colors.TextMuted
 Footer.TextXAlignment = Enum.TextXAlignment.Center
 Footer.Parent = ContentFrame
 
--- ═══════════════════════════════════════════════
--- MINIMIZE / TOGGLE GUI BUTTON (floating)
--- ═══════════════════════════════════════════════
 local ToggleGuiBtn = Instance.new("TextButton")
 ToggleGuiBtn.Size = UDim2.new(0, 44, 0, 44)
 ToggleGuiBtn.Position = UDim2.new(0, 10, 0.5, -22)
@@ -1394,9 +1327,6 @@ ToggleGuiBtn.MouseLeave:Connect(function()
     Tween(ToggleGuiBtn, {Size = UDim2.new(0, 44, 0, 44), Position = UDim2.new(0, 10, 0.5, -22)}, 0.2)
 end)
 
--- ═══════════════════════════════════════════════
--- MINIMIZE / RESTORE LOGIC
--- ═══════════════════════════════════════════════
 MinimizeBtn.MouseButton1Click:Connect(function()
     Tween(MainFrame, {Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, 0)}, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
     task.wait(0.3)
@@ -1412,19 +1342,18 @@ ToggleGuiBtn.MouseButton1Click:Connect(function()
     Tween(MainFrame, {Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, MAIN_WINDOW_HEIGHT)}, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 end)
 
--- Hitbox: definido antes de UpdateToggleVisual para não dar "attempt to call a nil value"
 local cachedHitboxesFolder = nil
 local hitboxWaiterActive = false
 
 local function GetGameHitboxesFolder()
     if cachedHitboxesFolder and cachedHitboxesFolder.Parent then return cachedHitboxesFolder end
     cachedHitboxesFolder = nil
-    local assets = ReplicatedStorage:FindFirstChild(N1)
+    local assets = R.F(N1)
     if assets then
         local h = assets:FindFirstChild(N2)
         if h and h:IsA("Folder") then cachedHitboxesFolder = h; return h end
     end
-    local h = ReplicatedStorage:FindFirstChild(N2)
+    local h = R.F(N2)
     if h and h:IsA("Folder") then cachedHitboxesFolder = h; return h end
     return nil
 end
@@ -1447,7 +1376,7 @@ local function TryWaitForHitboxesFolder()
     if hitboxWaiterActive or GetGameHitboxesFolder() then return end
     hitboxWaiterActive = true
     task.spawn(function()
-        local a = ReplicatedStorage:WaitForChild(N1, 6)
+        local a = R.W(N1, 6)
         if a and Cleanup._active and HITBOX_ENABLED then
             local h = a:WaitForChild(N2, 6)
             if h and h:IsA("Folder") then
@@ -1460,8 +1389,6 @@ local function TryWaitForHitboxesFolder()
     end)
 end
 
--- ═══════════════════════════════════════════════
--- KEYBINDS (teclas de atalho)
 -- ═══════════════════════════════════════════════
 Cleanup.Register(UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
@@ -1487,8 +1414,6 @@ Cleanup.Register(UserInputService.InputBegan:Connect(function(input, gameProcess
 end))
 
 -- ═══════════════════════════════════════════════
--- TOGGLE HITBOX LOGIC
--- ═══════════════════════════════════════════════
 local function UpdateToggleVisual()
     if HITBOX_ENABLED then
         cachedHitboxesFolder = nil
@@ -1501,13 +1426,8 @@ local function UpdateToggleVisual()
         StatusIcon.BackgroundColor3 = Colors.Green
         pcall(function()
             ApplyGameHitboxes(HITBOX_SIZE)
-            if InfoText and not GetGameHitboxesFolder() then
-                InfoText.Text = "Entre numa partida para ativar hitbox"
-            end
-        end)
-        task.delay(1, function()
-            if HITBOX_ENABLED and ApplyGameHitboxes(HITBOX_SIZE) and InfoText then
-                InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")"
+            if InfoText then
+                InfoText.Text = GetGameHitboxesFolder() and ("Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")") or "Entre numa partida para ativar hitbox"
             end
         end)
     else
@@ -1551,7 +1471,6 @@ local function UpdateSlider(input)
 
     if HITBOX_ENABLED then
         StatusText.Text = "Hitbox: Ativado (" .. HITBOX_SIZE .. ")"
-        pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
     end
 end
 
@@ -1587,9 +1506,7 @@ end
 SyncSliderVisual()
 
 -- ═══════════════════════════════════════════════
--- HITBOX IN-GAME (Volleyball Legends – por ação)
 -- ═══════════════════════════════════════════════
--- GetGameHitboxesFolder, ApplyGameHitboxes, TryWaitForHitboxesFolder já definidos acima (antes de UpdateToggleVisual).
 
 local function GetCharacter()
     return LocalPlayer and LocalPlayer.Character
@@ -1600,86 +1517,40 @@ local function GetRootPart()
     return char and char:FindFirstChild("HumanoidRootPart")
 end
 
--- Aim Reck: prevê onde a bola vai cair (qualquer direção), para ajudar na recepção e aos amigos.
-local AIM_RECK_MIN_VELOCITY = 5
-local AIM_RECK_MAX_LANDING_DIST = 350
-local AIM_RECK_GROUND_OFFSET = 4
-local AIM_RECK_EDGE_MARGIN = 60
-
-local lastBallPosForReck = nil
-local lastBallTimeForReck = nil
-
-local function getBallVelocity(ball)
-    if not ball or not ball.Parent then return nil end
-    local vel = nil
-    if ball.AssemblyLinearVelocity and ball.AssemblyLinearVelocity.Magnitude > 0 then
-        vel = ball.AssemblyLinearVelocity
-    elseif ball.Velocity and ball.Velocity.Magnitude > 0 then
-        vel = ball.Velocity
-    end
-    if vel and vel.Magnitude >= AIM_RECK_MIN_VELOCITY then return vel end
-    -- Fallback: estimar velocidade pela variação da posição (jogo pode mover a bola por CFrame)
-    local now = tick()
-    if lastBallPosForReck and lastBallTimeForReck and (now - lastBallTimeForReck) > 0.03 then
-        local dt = now - lastBallTimeForReck
-        local delta = ball.Position - lastBallPosForReck
-        local estVel = delta / dt
-        if estVel.Magnitude >= AIM_RECK_MIN_VELOCITY and estVel.Magnitude < 500 then
-            vel = estVel
-        end
-    end
-    lastBallPosForReck = ball.Position
-    lastBallTimeForReck = now
-    return (vel and vel.Magnitude >= AIM_RECK_MIN_VELOCITY) and vel or nil
-end
-
-local function predictLandingPosition(ball, rootPart)
-    if not rootPart or not rootPart.Parent then return nil end
-    local vel = getBallVelocity(ball)
-    if not vel or vel.Magnitude < AIM_RECK_MIN_VELOCITY then return nil end
-    local g = workspace.Gravity or 196.2
-    local gravityVec = Vector3.new(0, -g, 0)
-    local dt = 1/60
-    local p = ball.Position
-    local v = Vector3.new(vel.X, vel.Y, vel.Z)
-    -- Nível do chão: perto dos pés do jogador ou um pouco abaixo da bola (para bola descendo)
-    local groundY = math.min(rootPart.Position.Y - 2, ball.Position.Y - 1)
-    for _ = 1, 1200 do
-        p = p + v * dt
-        v = v + gravityVec * dt
-        if p.Y <= groundY then
-            local landing = Vector3(p.X, groundY, p.Z)
-            if (landing - rootPart.Position).Magnitude > AIM_RECK_MAX_LANDING_DIST then return nil end
-            return landing
-        end
-    end
-    return nil
-end
-
--- Nomes para buscar a bola (montados em runtime).
 local BALL_SEARCH_PATHS = {
     N5, N6,
     _("Bal", "l"), _("Volley", "ball"), _("bo", "la"), _("Volley", "Ball"), _("Game", "Ball"),
-    _("Ball", "Part"), _("Main", "Ball"), _("Sph", "ere"), _("Project", "ile")
+    _("Ball", "Part"), _("Main", "Ball"), _("Sph", "ere"), _("Project", "ile"),
+    "TheBall", "SportsBall", "VB", "BallMesh", "SpherePart", "ClientBall", "GameBall"
 }
+
+local function looksLikeBall(obj)
+    if not obj or not obj.Parent then return false end
+    if obj:IsA("BasePart") then
+        local m = obj.Size.Magnitude
+        return m > 0.3 and m < 25
+    end
+    if obj:IsA("Model") then
+        local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+        return part and looksLikeBall(part)
+    end
+    return false
+end
 
 local function getPartFromBallObj(obj)
     if not obj or not obj.Parent then return nil end
     if obj:IsA("BasePart") then
-        return (obj.Size.Magnitude > 0.5 and obj.Size.Magnitude < 20) and obj or nil
+        return (obj.Size.Magnitude > 0.3 and obj.Size.Magnitude < 25) and obj or nil
     end
     if obj:IsA("Model") then
         local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-        if part and part.Size.Magnitude > 0.5 and part.Size.Magnitude < 20 then
+        if part and part.Size.Magnitude > 0.3 and part.Size.Magnitude < 25 then
             return part
         end
     end
     return nil
 end
 
--- Find the ball object in workspace.
--- Modo seguro: só FindFirstChild(nome, true), sem GetDescendants.
--- Volleyball Legends: CLIENT_BALL / CLIENT_BALL_
 local cachedBall = nil
 local lastBallSearch = 0
 
@@ -1694,7 +1565,6 @@ local function FindBall()
     end
     lastBallSearch = now
 
-    -- Só nomes conhecidos (FindFirstChild recursivo = seguro, sem varredura).
     for _, pathName in ipairs(BALL_SEARCH_PATHS) do
         local obj = workspace:FindFirstChild(pathName, true)
         if obj then
@@ -1703,32 +1573,35 @@ local function FindBall()
                 cachedBall = part
                 return part
             end
-            if obj:IsA("BasePart") and obj.Size.Magnitude < 20 and obj.Size.Magnitude > 0.5 then
+            if obj:IsA("BasePart") and obj.Size.Magnitude < 25 and obj.Size.Magnitude > 0.3 then
                 cachedBall = obj
                 return obj
             end
         end
     end
 
+    local nameLower
+    for _, child in ipairs(workspace:GetChildren()) do
+        nameLower = child.Name:lower()
+        if (nameLower:find("ball") or nameLower:find("bola") or nameLower:find("sphere") or nameLower:find("volley")) and looksLikeBall(child) then
+            local part = getPartFromBallObj(child)
+            if part then
+                cachedBall = part
+                return part
+            end
+        end
+    end
+
     return nil
 end
-
--- ═══════════════════════════════════════════════
--- DEBUG (só com DEBUG_ENABLED = true; usa só GetChildren, sem GetDescendants)
--- ═══════════════════════════════════════════════
 local debugRan = not DEBUG_ENABLED
 local function DebugPrintObjects()
     if debugRan then return end
     debugRan = true
-    print("[VL] Debug: Top-level workspace:")
     for _, child in ipairs(workspace:GetChildren()) do
         print("  " .. child.ClassName .. " " .. child.Name)
     end
 end
-
--- ═══════════════════════════════════════════════
--- MAIN LOOP (RenderStepped — runs before physics)
--- ═══════════════════════════════════════════════
 local hitboxConnection = nil
 local frameCounter = 0
 
@@ -1745,12 +1618,7 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     if not Safe.IsValidGui() then return end
 
     local cam = workspace.CurrentCamera
-    -- Uma única chamada FindBall() por frame (cone + pull)
     local ball = FindBall()
-    if not ball then
-        lastBallPosForReck = nil
-        lastBallTimeForReck = nil
-    end
     if cam and BallConeOutline and BallConeOutline.Parent then
         if ball and ball.Parent then
             local cf = cam.CFrame
@@ -1787,36 +1655,20 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
         BallInCone = false
     end
 
-    -- Aim Reck: marcador de queda (qualquer direção — ajuda na recepção e aos amigos)
     if AIM_RECK_ENABLED and AimReckMarker and AimReckMarker.Parent then
-        local rootPart = GetRootPart()
-        if ball and ball.Parent and rootPart and cam then
-            local landing = predictLandingPosition(ball, rootPart)
-            if landing then
-                local v2, onScreen = cam:WorldToViewportPoint(landing)
-                local vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
-                local margin = AIM_RECK_EDGE_MARGIN
-                if onScreen then
-                    AimReckMarker.Position = UDim2.new(0, v2.X, 0, v2.Y)
-                    AimReckMarker.Visible = true
-                else
-                    -- Mostra na borda da tela na direção da queda (sempre aparece algo quando há previsão)
-                    local x = math.clamp(v2.X, margin, vw - margin)
-                    local y = math.clamp(v2.Y, margin, vh - margin)
-                    AimReckMarker.Position = UDim2.new(0, x, 0, y)
-                    AimReckMarker.Visible = true
-                end
-            else
-                AimReckMarker.Visible = false
-            end
+        local rp = GetRootPart()
+        if rp and rp.Parent and ball and ball.Parent and cam then
+            local v2 = cam:WorldToViewportPoint(ball.Position)
+            local vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
+            local m = 50
+            AimReckMarker.Position = UDim2.new(0, math.clamp(v2.X, m, vw - m), 0, math.clamp(v2.Y, m, vh - m))
+            AimReckMarker.Visible = true
         else
             AimReckMarker.Visible = false
         end
     end
 
-    if BufferOn and frameCounter % 60 == 0 and #B >= 2 then
-        -- Buffer: lógica de comp desativada (não altera timing; zero risco).
-    end
+    if BufferOn and frameCounter % 60 == 0 and #B >= 2 then end
 
     frameCounter = frameCounter + 1
     if DEBUG_ENABLED and frameCounter == 180 then
@@ -1826,9 +1678,7 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     if not HITBOX_ENABLED or HITBOX_SIZE <= 0 then return end
     local rootPart = GetRootPart()
     if not rootPart then return end
-    -- Reutiliza 'ball' já obtido no início do frame
     if not ball then return end
-    -- Modo conservador: sem pull da bola (só hitbox expandida)
     if ANTICHEAT_DISABLE_BALL_PULL then return end
 
     -- Aplicar pull só a cada N frames (+ jitter) para não ficar padrão constante
@@ -1842,7 +1692,6 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     if distance <= HITBOX_SIZE and distance > 1 then
         pcall(function()
             local direction = (ballPos - playerPos).Unit
-            -- Pequena variação para não usar sempre os mesmos valores (menos assinatura)
             local pullDist = PULL_DISTANCE * (0.92 + math.random() * 0.16)
             local lerpSpeed = math.clamp(BALL_LERP_SPEED * (0.9 + math.random() * 0.25), 0.05, 0.5)
             local targetPos = playerPos + direction * pullDist
@@ -1852,46 +1701,10 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     end
 end)
 Cleanup.Register(hitboxConnection)
-
--- Reset ball cache on respawn; reaplica hitboxes do jogo se ainda estiver ON
 Cleanup.Register(LocalPlayer.CharacterAdded:Connect(function()
     cachedBall = nil
     cachedHitboxesFolder = nil
-    task.defer(function()
-        task.wait(1)
-        if not Cleanup._active then return end
-        if HITBOX_ENABLED then
-            pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
-        end
-    end)
 end))
-
--- Reaplica hitboxes a cada ~1s quando ON. Se a pasta não existir (lobby), espera aparecer na partida.
-task.spawn(function()
-    while Cleanup._active do
-        local baseSec = (type(HITBOX_REAPPLY_BASE_SEC) == "number" and HITBOX_REAPPLY_BASE_SEC > 0) and HITBOX_REAPPLY_BASE_SEC or 1
-        task.wait(baseSec + (math.random() * 0.5))
-        if not Cleanup._active then break end
-        if not Safe.IsValidGui() then break end
-        if HITBOX_ENABLED then
-            local ok = pcall(function()
-                if ApplyGameHitboxes(HITBOX_SIZE) then
-                    if InfoText then InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")" end
-                else
-                    if InfoText then InfoText.Text = "Entre numa partida para ativar hitbox" end
-                    TryWaitForHitboxesFolder()
-                end
-            end)
-            if not ok and InfoText then
-                InfoText.Text = "RightShift = GUI | H = Hitbox"
-            end
-        end
-    end
-end)
-
--- ═══════════════════════════════════════════════
--- OPENING ANIMATION (só depois do atraso anti-detecção)
--- ═══════════════════════════════════════════════
 MainFrame.Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, 0)
 MainFrame.BackgroundTransparency = 1
 
@@ -1902,10 +1715,6 @@ task.wait(0.1)
 
 Tween(MainFrame, {BackgroundTransparency = 0}, 0.3)
 Tween(MainFrame, {Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, MAIN_WINDOW_HEIGHT)}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
--- ═══════════════════════════════════════════════
--- CLEANUP: restaura estado e desconecta tudo ao fechar
--- ═══════════════════════════════════════════════
 function Cleanup.Run()
     Cleanup._active = false
     for _, conn in ipairs(Cleanup._connections) do
@@ -1933,13 +1742,7 @@ end)
 -- NOTIFICATION
 -- ═══════════════════════════════════════════════
 pcall(function()
-    StarterGui:SetCore("SendNotification", {
-        Title = "Volleyball Legends",
-        Text = "Modo conservador ON. Risco de ban por sua conta.",
-        Duration = 4
-    })
+    StarterGui:SetCore("SendNotification", { Title = "VL", Text = "OK", Duration = 2 })
 end)
 
-if DEBUG_ENABLED then
-    print("[Henrydangerkk] Script carregado. Hitbox + ESP. Debug ativo.")
-end
+if DEBUG_ENABLED then print("[VL] ok") end
