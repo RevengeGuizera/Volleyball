@@ -28,7 +28,7 @@ local HITBOX_ENABLED = false
 local HITBOX_SIZE = 0
 local MIN_HITBOX_SIZE = 0
 local MAX_HITBOX_SIZE = 50
-local BALL_SEARCH_INTERVAL = 0.35
+local BALL_SEARCH_INTERVAL = 0.18
 local DEBUG_ENABLED = false
 local PULL_DISTANCE = 2
 local BALL_LERP_SPEED = 0.25
@@ -1524,7 +1524,8 @@ local BALL_SEARCH_PATHS = {
     N5, N6,
     _("Bal", "l"), _("Volley", "ball"), _("bo", "la"), _("Volley", "Ball"), _("Game", "Ball"),
     _("Ball", "Part"), _("Main", "Ball"), _("Sph", "ere"), _("Project", "ile"),
-    "TheBall", "SportsBall", "VB", "BallMesh", "SpherePart", "ClientBall", "GameBall"
+    "TheBall", "SportsBall", "VB", "BallMesh", "SpherePart", "ClientBall", "GameBall",
+    "Bola", "BeachBall", "Volei", "Ball1", "Ball 1", "Voleyball", "Volleyball"
 }
 
 local function looksLikeBall(obj)
@@ -1593,6 +1594,16 @@ local function FindBall()
                 return part
             end
         end
+        for _, sub in ipairs(child:GetChildren()) do
+            nameLower = sub.Name:lower()
+            if (nameLower:find("ball") or nameLower:find("bola") or nameLower:find("sphere") or nameLower:find("volley")) and looksLikeBall(sub) then
+                local part = getPartFromBallObj(sub)
+                if part then
+                    cachedBall = part
+                    return part
+                end
+            end
+        end
     end
 
     return nil
@@ -1622,6 +1633,7 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
 
     local cam = workspace.CurrentCamera
     local ball = FindBall()
+    if AIM_RECK_ENABLED and not ball then cachedBall = nil end
     if cam and BallConeOutline and BallConeOutline.Parent then
         if ball and ball.Parent then
             local cf = cam.CFrame
