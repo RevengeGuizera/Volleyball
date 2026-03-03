@@ -27,7 +27,7 @@ local N6 = N5 .. "_"
 local HITBOX_ENABLED = false
 local HITBOX_SIZE = 0
 local MIN_HITBOX_SIZE = 0
-local MAX_HITBOX_SIZE = 35
+local MAX_HITBOX_SIZE = 50
 local BALL_SEARCH_INTERVAL = 0.35
 local DEBUG_ENABLED = false
 local PULL_DISTANCE = 2
@@ -36,6 +36,8 @@ local KEYBIND_TOGGLE_GUI = Enum.KeyCode.RightShift
 local KEYBIND_TOGGLE_HITBOX = Enum.KeyCode.H
 local GAME_HITBOX_DEFAULT_SIZE = 10
 local BALL_PULL_FRAME_INTERVAL = 2
+local HITBOX_REAPPLY_MIN_SEC = 25
+local HITBOX_REAPPLY_MAX_SEC = 45
 local ANTICHEAT_DISABLE_BALL_PULL = true
 local ANTICHEAT_SAFE_NO_REPLICATED_WRITE = true
 local ANTICHEAT_SAFE_NO_BINDACTIVATE_HOOK = true
@@ -1471,6 +1473,7 @@ local function UpdateSlider(input)
 
     if HITBOX_ENABLED then
         StatusText.Text = "Hitbox: Ativado (" .. HITBOX_SIZE .. ")"
+        pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
     end
 end
 
@@ -1704,7 +1707,28 @@ Cleanup.Register(hitboxConnection)
 Cleanup.Register(LocalPlayer.CharacterAdded:Connect(function()
     cachedBall = nil
     cachedHitboxesFolder = nil
+    task.defer(function()
+        task.wait(1)
+        if not Cleanup._active or not HITBOX_ENABLED then return end
+        pcall(function() ApplyGameHitboxes(HITBOX_SIZE) end)
+    end)
 end))
+task.spawn(function()
+    while Cleanup._active do
+        local minS = (type(HITBOX_REAPPLY_MIN_SEC) == "number" and HITBOX_REAPPLY_MIN_SEC > 0) and HITBOX_REAPPLY_MIN_SEC or 25
+        local maxS = (type(HITBOX_REAPPLY_MAX_SEC) == "number" and HITBOX_REAPPLY_MAX_SEC >= minS) and HITBOX_REAPPLY_MAX_SEC or (minS + 20)
+        task.wait(minS + (math.random() * (maxS - minS)))
+        if not Cleanup._active then break end
+        if not Safe.IsValidGui() then break end
+        if HITBOX_ENABLED then
+            pcall(function()
+                if ApplyGameHitboxes(HITBOX_SIZE) and InfoText then
+                    InfoText.Text = "Hitboxes: OK (alcance " .. HITBOX_SIZE .. ")"
+                end
+            end)
+        end
+    end
+end)
 MainFrame.Size = UDim2.new(0, MAIN_WINDOW_WIDTH, 0, 0)
 MainFrame.BackgroundTransparency = 1
 
