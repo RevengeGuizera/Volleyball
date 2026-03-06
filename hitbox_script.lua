@@ -1021,10 +1021,95 @@ ReckToggleOuter.MouseLeave:Connect(function()
     if not AIM_RECK_ENABLED then Tween(ReckToggleOuter, {BackgroundColor3 = Colors.SliderBg}, 0.2) end
 end)
 
+-- Tamanho da seta (1-50)
+local AIM_RECK_ARROW_SIZE = 10
+local ReckSizeRow = Instance.new("Frame")
+ReckSizeRow.Size = UDim2.new(1, 0, 0, 52)
+ReckSizeRow.Position = UDim2.new(0, 0, 0, 282)
+ReckSizeRow.BackgroundColor3 = Colors.Panel
+ReckSizeRow.BorderSizePixel = 0
+ReckSizeRow.Parent = ContentFrame
+CreateCorner(ReckSizeRow, 10)
+CreateStroke(ReckSizeRow, Color3.fromRGB(45, 45, 70), 1)
+local ReckSizeLabel = Instance.new("TextLabel")
+ReckSizeLabel.Size = UDim2.new(0.5, 0, 0, 24)
+ReckSizeLabel.Position = UDim2.new(0, 16, 0, 8)
+ReckSizeLabel.BackgroundTransparency = 1
+ReckSizeLabel.Text = "Tamanho da seta (1-50)"
+ReckSizeLabel.TextSize = 12
+ReckSizeLabel.Font = Enum.Font.SourceSansSemibold
+ReckSizeLabel.TextColor3 = Colors.TextSecondary
+ReckSizeLabel.TextXAlignment = Enum.TextXAlignment.Left
+ReckSizeLabel.Parent = ReckSizeRow
+local ReckSizeValue = Instance.new("TextLabel")
+ReckSizeValue.Size = UDim2.new(0.25, 0, 0, 24)
+ReckSizeValue.Position = UDim2.new(0.75, -16, 0, 8)
+ReckSizeValue.BackgroundTransparency = 1
+ReckSizeValue.Text = "10"
+ReckSizeValue.TextSize = 14
+ReckSizeValue.Font = Enum.Font.GothamBold
+ReckSizeValue.TextColor3 = Colors.Green
+ReckSizeValue.TextXAlignment = Enum.TextXAlignment.Right
+ReckSizeValue.Parent = ReckSizeRow
+local ReckSizeTrack = Instance.new("Frame")
+ReckSizeTrack.Size = UDim2.new(1, -32, 0, 8)
+ReckSizeTrack.Position = UDim2.new(0, 16, 0, 36)
+ReckSizeTrack.BackgroundColor3 = Colors.SliderBg
+ReckSizeTrack.BorderSizePixel = 0
+ReckSizeTrack.Parent = ReckSizeRow
+CreateCorner(ReckSizeTrack, 4)
+local ReckSizeFill = Instance.new("Frame")
+ReckSizeFill.Size = UDim2.new((AIM_RECK_ARROW_SIZE - 1) / 49, 0, 1, 0)
+ReckSizeFill.Position = UDim2.new(0, 0, 0, 0)
+ReckSizeFill.BackgroundColor3 = Colors.Green
+ReckSizeFill.BorderSizePixel = 0
+ReckSizeFill.Parent = ReckSizeTrack
+CreateCorner(ReckSizeFill, 4)
+local ReckSizeKnob = Instance.new("Frame")
+ReckSizeKnob.Size = UDim2.new(0, 14, 0, 14)
+ReckSizeKnob.Position = UDim2.new((AIM_RECK_ARROW_SIZE - 1) / 49, -7, 0.5, -7)
+ReckSizeKnob.BackgroundColor3 = Colors.TextPrimary
+ReckSizeKnob.BorderSizePixel = 0
+ReckSizeKnob.ZIndex = 2
+ReckSizeKnob.Parent = ReckSizeFill
+CreateCorner(ReckSizeKnob, 7)
+local ReckSizeBtn = Instance.new("TextButton")
+ReckSizeBtn.Size = UDim2.new(1, 20, 0, 24)
+ReckSizeBtn.Position = UDim2.new(0, -10, 0, -4)
+ReckSizeBtn.BackgroundTransparency = 1
+ReckSizeBtn.Text = ""
+ReckSizeBtn.ZIndex = 3
+ReckSizeBtn.Parent = ReckSizeTrack
+local function updateReckSizeVisual()
+    local v = math.clamp(AIM_RECK_ARROW_SIZE, 1, 50)
+    local r = (v - 1) / 49
+    ReckSizeFill.Size = UDim2.new(r, 0, 1, 0)
+    ReckSizeKnob.Position = UDim2.new(r, -7, 0.5, -7)
+    ReckSizeValue.Text = tostring(v)
+end
+ReckSizeBtn.MouseButton1Down:Connect(function()
+    local conn
+    conn = UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            local pos = ReckSizeTrack.AbsolutePosition.X
+            local size = ReckSizeTrack.AbsoluteSize.X
+            if size > 0 then
+                local x = UserInputService:GetMouseLocation().X - pos
+                local r = math.clamp(x / size, 0, 1)
+                AIM_RECK_ARROW_SIZE = math.clamp(math.floor(1 + r * 50), 1, 50)
+                updateReckSizeVisual()
+            end
+        end
+    end)
+    UserInputService.InputEnded:Once(function()
+        conn:Disconnect()
+    end)
+end)
+
 -- ═══════════════════════════════════════════════
 local EspSectionHeader = Instance.new("Frame")
 EspSectionHeader.Size = UDim2.new(1, 0, 0, 38)
-EspSectionHeader.Position = UDim2.new(0, 0, 0, 290)
+EspSectionHeader.Position = UDim2.new(0, 0, 0, 342)
 EspSectionHeader.BackgroundColor3 = Colors.Panel
 EspSectionHeader.BorderSizePixel = 0
 EspSectionHeader.Parent = ContentFrame
@@ -1061,7 +1146,7 @@ EspSectionTitle.Parent = EspSectionHeader
 
 local EspToggleContainer = Instance.new("Frame")
 EspToggleContainer.Size = UDim2.new(1, 0, 0, 48)
-EspToggleContainer.Position = UDim2.new(0, 0, 0, 336)
+EspToggleContainer.Position = UDim2.new(0, 0, 0, 388)
 EspToggleContainer.BackgroundColor3 = Colors.Panel
 EspToggleContainer.BorderSizePixel = 0
 EspToggleContainer.Parent = ContentFrame
@@ -1162,7 +1247,7 @@ end)
 -- ═══════════════════════════════════════════════
 local BordaSectionHeader = Instance.new("Frame")
 BordaSectionHeader.Size = UDim2.new(1, 0, 0, 38)
-BordaSectionHeader.Position = UDim2.new(0, 0, 0, 384)
+BordaSectionHeader.Position = UDim2.new(0, 0, 0, 436)
 BordaSectionHeader.BackgroundColor3 = Colors.Panel
 BordaSectionHeader.BorderSizePixel = 0
 BordaSectionHeader.Parent = ContentFrame
@@ -1318,7 +1403,7 @@ end
 
 local BufferRow = Instance.new("Frame")
 BufferRow.Size = UDim2.new(1, 0, 0, 28)
-BufferRow.Position = UDim2.new(0, 0, 0, 474)
+BufferRow.Position = UDim2.new(0, 0, 0, 526)
 BufferRow.BackgroundColor3 = Colors.Panel
 BufferRow.BorderSizePixel = 0
 BufferRow.Parent = ContentFrame
@@ -1368,7 +1453,7 @@ end)
 -- ═══════════════════════════════════════════════
 local StatusBar = Instance.new("Frame")
 StatusBar.Size = UDim2.new(1, 0, 0, 58)
-StatusBar.Position = UDim2.new(0, 0, 0, 510)
+StatusBar.Position = UDim2.new(0, 0, 0, 562)
 StatusBar.BackgroundColor3 = Colors.Panel
 StatusBar.BorderSizePixel = 0
 StatusBar.Parent = ContentFrame
@@ -1417,7 +1502,7 @@ InfoText.Parent = StatusBar
 -- ═══════════════════════════════════════════════
 local DisclaimerBg = Instance.new("Frame")
 DisclaimerBg.Size = UDim2.new(1, 0, 0, 32)
-DisclaimerBg.Position = UDim2.new(0, 0, 0, 576)
+DisclaimerBg.Position = UDim2.new(0, 0, 0, 628)
 DisclaimerBg.BackgroundColor3 = Color3.fromRGB(35, 25, 25)
 DisclaimerBg.BorderSizePixel = 0
 DisclaimerBg.Parent = ContentFrame
@@ -1440,7 +1525,7 @@ DisclaimerText.Parent = DisclaimerBg
 -- ═══════════════════════════════════════════════
 local Footer = Instance.new("TextLabel")
 Footer.Size = UDim2.new(1, 0, 0, 24)
-Footer.Position = UDim2.new(0, 0, 0, 612)
+Footer.Position = UDim2.new(0, 0, 0, 664)
 Footer.BackgroundTransparency = 1
 Footer.Text = "⚡ Henrydangerkk • v1.5 Final"
 Footer.TextSize = 11
@@ -2015,6 +2100,7 @@ local function UpdateAimReck()
     for i = 1, 4 do local a = arrows and arrows[i]; if a and a.Parent then a.Visible = false end end
 
     local seen = {}
+    local scale = math.clamp(AIM_RECK_ARROW_SIZE or 10, 1, 50) / 10
     for _, d in ipairs(list) do
         local plr, hrp, look = d.plr, d.hrp, d.look
         if plr and hrp and hrp.Parent and look and look.Magnitude > 0.01 then
@@ -2029,18 +2115,18 @@ local function UpdateAimReck()
                     shaft.CanCollide = false
                     shaft.CanQuery = false
                     shaft.CanTouch = false
-                    shaft.Size = Vector3.new(0.15, 0.15, 2)
+                    shaft.Size = Vector3.new(0.12 * scale, 0.12 * scale, 1.8 * scale)
                     shaft.Color = Color3.fromRGB(0, 255, 100)
                     shaft.Material = Enum.Material.SmoothPlastic
                     shaft.Transparency = 0
                     shaft.Parent = workspace
-                    local head = Instance.new("Part")
+                    local head = Instance.new("WedgePart")
                     head.Name = _RandomName("", 6)
                     head.Anchored = true
                     head.CanCollide = false
                     head.CanQuery = false
                     head.CanTouch = false
-                    head.Size = Vector3.new(0.4, 0.3, 0.3)
+                    head.Size = Vector3.new(0.5 * scale, 0.35 * scale, 0.35 * scale)
                     head.Color = Color3.fromRGB(0, 255, 100)
                     head.Material = Enum.Material.SmoothPlastic
                     head.Transparency = 0
@@ -2050,11 +2136,15 @@ local function UpdateAimReck()
                 data = AimReckBillboards[plr]
             end
             if data and data.shaft and data.shaft.Parent and data.head and data.head.Parent then
-                local base = hrp.Position + look * 0.8
-                local tip = base + look * 2.2
-                local centerShaft = base + look * 1.1
+                local sz = math.clamp(AIM_RECK_ARROW_SIZE or 10, 1, 50) / 10
+                data.shaft.Size = Vector3.new(0.12 * sz, 0.12 * sz, 1.8 * sz)
+                data.head.Size = Vector3.new(0.5 * sz, 0.35 * sz, 0.35 * sz)
+                local base = hrp.Position + look * (0.6 * sz)
+                local tip = base + look * (2 * sz)
+                local centerShaft = base + look * (0.9 * sz)
                 data.shaft.CFrame = CFrame.lookAt(centerShaft, tip)
-                data.head.CFrame = CFrame.lookAt(base + look * 2.1, tip + look)
+                local tipPos = base + look * (1.85 * sz)
+                data.head.CFrame = CFrame.lookAt(tipPos, tip + look) * CFrame.Angles(0, math.rad(-90), 0)
             end
         end
     end
