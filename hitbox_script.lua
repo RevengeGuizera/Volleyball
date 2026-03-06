@@ -223,15 +223,20 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = GUI_PUBLIC_NAME
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-ScreenGui.DisplayOrder = 999
+ScreenGui.DisplayOrder = 99999
 ScreenGui.IgnoreGuiInset = true
 
-pcall(function()
-    if CoreGui then ScreenGui.Parent = CoreGui end
-end)
-if not ScreenGui.Parent and LocalPlayer then
-    local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 8)
-    if pg then ScreenGui.Parent = pg end
+-- Tentar PlayerGui primeiro (comum com scripts injetados), depois CoreGui
+if LocalPlayer then
+    local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 5)
+    if pg then pcall(function() ScreenGui.Parent = pg end) end
+end
+if not ScreenGui.Parent and CoreGui then pcall(function() ScreenGui.Parent = CoreGui end) end
+-- Esperar até o GUI ter parent (re-tentar a cada 0.3s)
+while not ScreenGui.Parent and Cleanup._active do
+    if LocalPlayer then local pg = LocalPlayer:FindFirstChild("PlayerGui"); if pg then pcall(function() ScreenGui.Parent = pg end) end end
+    if not ScreenGui.Parent and CoreGui then pcall(function() ScreenGui.Parent = CoreGui end) end
+    if not ScreenGui.Parent then task.wait(0.3) end
 end
 if not ScreenGui.Parent then return end
 
@@ -427,18 +432,18 @@ local AimReckArrows = { AimReckMarker, AimReckBackup, AimReckArrow3, AimReckArro
 
 local AimReckHintText = Instance.new("TextLabel")
 AimReckHintText.Name = _RandomName("", 6)
-AimReckHintText.Size = UDim2.new(0, 220, 0, 28)
-AimReckHintText.Position = UDim2.new(0.5, -110, 1, -42)
+AimReckHintText.Size = UDim2.new(0, 280, 0, 32)
+AimReckHintText.Position = UDim2.new(0.5, -140, 1, -72)
 AimReckHintText.AnchorPoint = Vector2.new(0.5, 0)
-AimReckHintText.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
-AimReckHintText.BackgroundTransparency = 0.3
+AimReckHintText.BackgroundColor3 = Color3.fromRGB(15, 15, 28)
+AimReckHintText.BackgroundTransparency = 0.15
 AimReckHintText.BorderSizePixel = 0
 AimReckHintText.Text = ""
-AimReckHintText.TextColor3 = Color3.fromRGB(180, 220, 180)
-AimReckHintText.TextSize = 14
+AimReckHintText.TextColor3 = Color3.fromRGB(200, 255, 200)
+AimReckHintText.TextSize = 15
 AimReckHintText.Font = Enum.Font.GothamMedium
 AimReckHintText.Visible = false
-AimReckHintText.ZIndex = 9995
+AimReckHintText.ZIndex = 99999
 AimReckHintText.Parent = ScreenGui
 CreateCorner(AimReckHintText, 8)
 
@@ -1921,9 +1926,17 @@ end
 -- Aim Reck: atualização única e à prova de falhas (nunca dá erro)
 local function getViewportXY(a, b)
     if a == nil then return 0, 0, false end
-    if type(a) == "number" and type(b) == "number" then return a, b, true end
-    if a.X ~= nil and a.Y ~= nil then return tonumber(a.X) or 0, tonumber(a.Y) or 0, (type(b) == "number" and b > 0) end
-    return 0, 0, false
+    local sx, sy
+    if type(a) == "number" and type(b) == "number" then
+        sx, sy = a, b
+    elseif a.X ~= nil and a.Y ~= nil then
+        sx = tonumber(a.X); sy = tonumber(a.Y)
+        if not sx then sx = 0 end
+        if not sy then sy = 0 end
+    else
+        return 0, 0, false
+    end
+    return sx, sy, true
 end
 
 local function UpdateAimReck()
@@ -2098,6 +2111,11 @@ end
 
 hitboxConnection = RunService.RenderStepped:Connect(function()
     if not Cleanup._active then return end
+    -- Reparentar ScreenGui se o jogo o tiver removido (recovery)
+    if ScreenGui and not ScreenGui.Parent and LocalPlayer then
+        local pg = LocalPlayer:FindFirstChild("PlayerGui")
+        if pg then pcall(function() ScreenGui.Parent = pg end) end
+    end
     if not Safe.IsValidGui() then return end
 
     local cam = workspace.CurrentCamera
