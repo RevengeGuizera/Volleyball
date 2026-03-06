@@ -1580,6 +1580,64 @@ local function GetRootPart()
     return char and char:FindFirstChild("HumanoidRootPart")
 end
 
+local function getNetPosition()
+    for _, name in ipairs({"Net", "Rede", "RedeVolei", "VolleyballNet", "Middle", "Nets"}) do
+        local o = workspace:FindFirstChild(name)
+        if not o then
+            for _, ch in ipairs(workspace:GetChildren()) do
+                if ch:IsA("Model") or ch:IsA("Folder") then o = ch:FindFirstChild(name) end
+                if o then break end
+            end
+        end
+        if o then
+            if o:IsA("BasePart") then return o.Position end
+            if o:IsA("Model") and o.PrimaryPart then return o.PrimaryPart.Position end
+            local p = o:FindFirstChildWhichIsA("BasePart")
+            if p then return p.Position end
+        end
+    end
+    return nil
+end
+
+local function isOnOurCourt(pos, ourRoot, netPos)
+    if not ourRoot or not pos then return true end
+    if not netPos then return true end
+    local ourZ = ourRoot.Position.Z
+    local pZ = pos.Z
+    local nZ = netPos.Z
+    return (pZ - nZ) * (ourZ - nZ) > 0
+end
+
+local function getEnemyAimOnCourt(courtY, netPos, ourRoot)
+    if not ourRoot or not ourRoot.Parent then return nil end
+    local bestPos, bestDist = nil, math.huge
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+            if hrp and hrp.Parent then
+                local origin = hrp.Position
+                local dir = hrp.CFrame.LookVector
+                if dir.Magnitude < 0.01 then dir = Vector3.new(0, 0, -1) end
+                local dy = courtY - origin.Y
+                if math.abs(dir.Y) >= 0.01 then
+                    local t = dy / dir.Y
+                    if t > 0 then
+                        local hit = origin + dir * t
+                        if isOnOurCourt(hit, ourRoot, netPos) then
+                            local d = (hit - ourRoot.Position).Magnitude
+                            if d < bestDist and d < 80 then
+                                bestDist = d
+                                bestPos = hit
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return bestPos
+end
+
 local BALL_SEARCH_PATHS = {
     N5, N6,
     _("Bal", "l"), _("Volley", "ball"), _("bo", "la"), _("Volley", "Ball"), _("Game", "Ball"),
@@ -1831,25 +1889,30 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     pcall(function()
         if AIM_RECK_ENABLED and ScreenGui and ScreenGui.Parent then
             local cam = workspace.CurrentCamera
-            local vw, vh = 800, 600
-            if cam and cam.ViewportSize and cam.ViewportSize.X > 0 and cam.ViewportSize.Y > 0 then
-                vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
-            end
-            local m = 50
+            local show2d = false
             local pos2d = UDim2.new(0.5, 0, 0.5, 0)
-            if ball and ball.Parent and cam then
-                local v2 = cam:WorldToViewportPoint(ball.Position)
-                pos2d = UDim2.new(0, math.clamp(v2.X, m, vw - m), 0, math.clamp(v2.Y, m, vh - m))
+            if ball and ball.Parent and cam and cam.ViewportSize and cam.ViewportSize.X > 0 and cam.ViewportSize.Y > 0 then
+                local vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
+                local vx, vy, onScreen = cam:WorldToViewportPoint(ball.Position)
+                if onScreen and vx >= 0 and vx <= vw and vy >= 0 and vy <= vh then
+                    local m = 50
+                    pos2d = UDim2.new(0, math.clamp(vx, m, vw - m), 0, math.clamp(vy, m, vh - m))
+                    show2d = true
+                end
             end
             if AimReckMarker then
                 if AimReckMarker.Parent ~= ScreenGui then AimReckMarker.Parent = ScreenGui end
                 AimReckMarker.Position = pos2d
-                AimReckMarker.Visible = true
+                AimReckMarker.Visible = show2d
             end
             if AimReckBackup then
                 if AimReckBackup.Parent ~= ScreenGui then AimReckBackup.Parent = ScreenGui end
                 AimReckBackup.Position = pos2d
-                AimReckBackup.Visible = true
+                AimReckBackup.Visible = show2d
+            end
+            if not show2d then
+                if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
+                if AimReckBackup and AimReckBackup.Parent then AimReckBackup.Visible = false end
             end
         else
             if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
@@ -1858,28 +1921,41 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     end)
 
     pcall(function()
-        if AIM_RECK_ENABLED and LandingMarker and ball and ball.Parent then
-            local g = workspace.Gravity or 196.2
-            local pos = ball.Position
-            local vel = ball.AssemblyLinearVelocity or ball.Velocity or Vector3.new(0, 0, 0)
+        if not AIM_RECK_ENABLED or not LandingMarker then
+            if LandingMarker then LandingMarker.Transparency = 1 end
+        else
             local root = GetRootPart()
-            local courtY = root and (root.Position.Y - 2.5) or (pos.Y - 3)
-            local disc = vel.Y * vel.Y + 2 * g * (pos.Y - courtY)
-            if disc >= 0 then
-                local t = (-vel.Y + math.sqrt(disc)) / g
-                if t < 0 then t = (-vel.Y - math.sqrt(disc)) / g end
-                if t > 0 and t < 10 then
-                    local landPos = Vector3.new(pos.X + vel.X * t, courtY + 0.06, pos.Z + vel.Z * t)
-                    LandingMarker.CFrame = CFrame.new(landPos)
-                    LandingMarker.Transparency = 0.45
-                else
-                    LandingMarker.Transparency = 1
+            local courtY = root and (root.Position.Y - 2.5) or 0
+            local netPos = getNetPosition()
+            local landPos = nil
+
+            if ball and ball.Parent and root then
+                local pos = ball.Position
+                local vel = ball.AssemblyLinearVelocity or ball.Velocity or Vector3.new(0, 0, 0)
+                local g = workspace.Gravity or 196.2
+                local disc = vel.Y * vel.Y + 2 * g * (pos.Y - courtY)
+                if disc >= 0 then
+                    local t = (-vel.Y + math.sqrt(disc)) / g
+                    if t < 0 then t = (-vel.Y - math.sqrt(disc)) / g end
+                    if t > 0 and t < 10 then
+                        local physLand = Vector3.new(pos.X + vel.X * t, courtY + 0.06, pos.Z + vel.Z * t)
+                        if isOnOurCourt(physLand, root, netPos) then
+                            landPos = physLand
+                        end
+                    end
                 end
+            end
+
+            if not landPos and root then
+                landPos = getEnemyAimOnCourt(courtY, netPos, root)
+            end
+
+            if landPos then
+                LandingMarker.CFrame = CFrame.new(landPos)
+                LandingMarker.Transparency = 0.45
             else
                 LandingMarker.Transparency = 1
             end
-        elseif LandingMarker then
-            LandingMarker.Transparency = 1
         end
     end)
 
