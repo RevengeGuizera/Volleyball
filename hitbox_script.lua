@@ -1953,7 +1953,10 @@ local function UpdateAimReck()
         if targetSpot and targetSpot.Parent then targetSpot.Visible = false end
         if landing and landing.Parent then landing.Transparency = 1 end
         for plr, data in pairs(AimReckBillboards) do
-            if data and data.billboard and data.billboard.Parent then pcall(function() data.billboard:Destroy() end) end
+            if data then
+                if data.shaft and data.shaft.Parent then pcall(function() data.shaft:Destroy() end) end
+                if data.head and data.head.Parent then pcall(function() data.head:Destroy() end) end
+            end
         end
         AimReckBillboards = {}
     end
@@ -2013,47 +2016,52 @@ local function UpdateAimReck()
 
     local seen = {}
     for _, d in ipairs(list) do
-        local plr, hrp, rot = d.plr, d.hrp, d.rot
-        if plr and hrp and hrp.Parent and gui and gui.Parent then
+        local plr, hrp, look = d.plr, d.hrp, d.look
+        if plr and hrp and hrp.Parent and look and look.Magnitude > 0.01 then
+            look = look.Unit
             seen[plr] = true
             local data = AimReckBillboards[plr]
-            if not data or not data.billboard or not data.billboard.Parent then
+            if not data or not data.shaft or not data.shaft.Parent then
                 pcall(function()
-                    local bg = Instance.new("BillboardGui")
-                    bg.Name = _RandomName("", 6)
-                    bg.Adornee = hrp
-                    bg.Parent = gui
-                    bg.Size = UDim2.new(0, 100, 0, 28)
-                    bg.AlwaysOnTop = true
-                    bg.ClipsDescendants = false
-                    bg.StudsOffset = Vector3.new(0, 0, -2.5)
-                    local lbl = Instance.new("TextLabel")
-                    lbl.Size = UDim2.new(1, 0, 1, 0)
-                    lbl.BackgroundTransparency = 1
-                    lbl.BorderSizePixel = 0
-                    lbl.Text = "►"
-                    lbl.TextColor3 = Color3.fromRGB(0, 255, 120)
-                    lbl.TextScaled = true
-                    lbl.Font = Enum.Font.GothamBold
-                    lbl.TextStrokeTransparency = 0.5
-                    lbl.TextStrokeColor3 = Color3.new(0, 0, 0)
-                    lbl.Parent = bg
-                    AimReckBillboards[plr] = { billboard = bg, label = lbl }
+                    local shaft = Instance.new("Part")
+                    shaft.Name = _RandomName("", 6)
+                    shaft.Anchored = true
+                    shaft.CanCollide = false
+                    shaft.CanQuery = false
+                    shaft.CanTouch = false
+                    shaft.Size = Vector3.new(0.15, 0.15, 2)
+                    shaft.Color = Color3.fromRGB(0, 255, 100)
+                    shaft.Material = Enum.Material.SmoothPlastic
+                    shaft.Transparency = 0
+                    shaft.Parent = workspace
+                    local head = Instance.new("Part")
+                    head.Name = _RandomName("", 6)
+                    head.Anchored = true
+                    head.CanCollide = false
+                    head.CanQuery = false
+                    head.CanTouch = false
+                    head.Size = Vector3.new(0.4, 0.3, 0.3)
+                    head.Color = Color3.fromRGB(0, 255, 100)
+                    head.Material = Enum.Material.SmoothPlastic
+                    head.Transparency = 0
+                    head.Parent = workspace
+                    AimReckBillboards[plr] = { shaft = shaft, head = head }
                 end)
                 data = AimReckBillboards[plr]
             end
-            if data and data.billboard and data.billboard.Parent and data.label then
-                data.billboard.Adornee = hrp
-                data.billboard.StudsOffset = Vector3.new(0, 0, -2.5)
-                data.label.Rotation = rot or 0
-                data.label.TextColor3 = Color3.fromRGB(0, 255, 120)
-                data.billboard.Enabled = true
+            if data and data.shaft and data.shaft.Parent and data.head and data.head.Parent then
+                local base = hrp.Position + look * 0.8
+                local tip = base + look * 2.2
+                local centerShaft = base + look * 1.1
+                data.shaft.CFrame = CFrame.lookAt(centerShaft, tip)
+                data.head.CFrame = CFrame.lookAt(base + look * 2.1, tip + look)
             end
         end
     end
     for plr, data in pairs(AimReckBillboards) do
-        if not seen[plr] and data and data.billboard then
-            pcall(function() data.billboard:Destroy() end)
+        if not seen[plr] and data then
+            if data.shaft and data.shaft.Parent then pcall(function() data.shaft:Destroy() end) end
+            if data.head and data.head.Parent then pcall(function() data.head:Destroy() end) end
             AimReckBillboards[plr] = nil
         end
     end
