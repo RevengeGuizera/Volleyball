@@ -2087,7 +2087,6 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
                 end
             end
         end
-    end
     end)
 
     if BufferOn and frameCounter % 60 == 0 and #B >= 2 then end
