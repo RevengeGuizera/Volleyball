@@ -67,7 +67,7 @@ local Colors = {
     Shadow = Color3.fromRGB(5, 5, 10),
 }
 
--- Presets para "Cor da borda" (Accent, Glow, Dark)
+-- Presets para "Cor do Script" (wallhack, Aim Reck e tema do menu)
 local BordaPresets = {
     { name = "Violeta",   main = Color3.fromRGB(138, 43, 226),  glow = Color3.fromRGB(170, 80, 255),  dark = Color3.fromRGB(90, 20, 160) },
     { name = "Azul",      main = Color3.fromRGB(59, 130, 246),   glow = Color3.fromRGB(96, 165, 250),  dark = Color3.fromRGB(29, 78, 216) },
@@ -1179,8 +1179,8 @@ EspToggleButton.Parent = EspToggleOuter
 
 local ESP_ENABLED = false
 local ESP_HIGHLIGHT_NAME = ESP_PUBLIC_NAME
--- Vermelho mais forte na listra (contorno do wallhack)
-local ESP_OUTLINE_COLOR = Color3.fromRGB(255, 75, 75)
+-- Cor do contorno do wallhack e da listra do Aim Reck = cor escolhida em "Cor do Script"
+local ESP_OUTLINE_COLOR = Colors.Accent
 
 local function RemoveEspFromCharacter(char)
     if not Safe.IsValidCharacter(char) then return end
@@ -1266,7 +1266,7 @@ local BordaSectionTitle = Instance.new("TextLabel")
 BordaSectionTitle.Size = UDim2.new(1, -55, 1, 0)
 BordaSectionTitle.Position = UDim2.new(0, 50, 0, 0)
 BordaSectionTitle.BackgroundTransparency = 1
-BordaSectionTitle.Text = "COR BORDA"
+BordaSectionTitle.Text = "COR DO SCRIPT"
 BordaSectionTitle.TextSize = 13
 BordaSectionTitle.Font = Enum.Font.GothamBlack
 BordaSectionTitle.TextColor3 = Colors.TextPrimary
@@ -1287,7 +1287,7 @@ local BordaLabel = Instance.new("TextLabel")
 BordaLabel.Size = UDim2.new(0, 72, 1, 0)
 BordaLabel.Position = UDim2.new(0, 8, 0, 0)
 BordaLabel.BackgroundTransparency = 1
-BordaLabel.Text = "Cor da borda"
+BordaLabel.Text = "Cor do Script"
 BordaLabel.TextSize = 11
 BordaLabel.Font = Enum.Font.SourceSansSemibold
 BordaLabel.TextColor3 = Colors.TextSecondary
@@ -1316,6 +1316,7 @@ local function ApplyBordaColor(accent, glow, dark)
     Colors.AccentGlow = glow
     Colors.AccentDark = dark
     Colors.SliderFill = accent
+    ESP_OUTLINE_COLOR = accent
     if MainStroke then MainStroke.Color = accent end
     if MainStrokeOuter then MainStrokeOuter.Color = glow end
     if TitleAccentCorner then TitleAccentCorner.BackgroundColor3 = accent end
@@ -1352,6 +1353,7 @@ local function ApplyBordaColor(accent, glow, dark)
     if HITBOX_ENABLED and ToggleOuter then Tween(ToggleOuter, {BackgroundColor3 = accent}, 0.2) end
     if AIM_RECK_ENABLED and ReckToggleOuter then Tween(ReckToggleOuter, {BackgroundColor3 = accent}, 0.2) end
     if ESP_ENABLED and EspToggleOuter then Tween(EspToggleOuter, {BackgroundColor3 = accent}, 0.2) end
+    pcall(UpdateEspForAll)
 end
 
 for i, preset in ipairs(BordaPresets) do
@@ -2109,55 +2111,22 @@ local function UpdateAimReck()
                     shaft.CanQuery = false
                     shaft.CanTouch = false
                     shaft.Size = Vector3.new(0.08 * scale, 0.08 * scale, 1.6 * scale)
-                    shaft.Color = Color3.fromRGB(0, 255, 110)
+                    shaft.Color = Colors.Accent
                     shaft.Material = Enum.Material.SmoothPlastic
                     shaft.Transparency = 0
                     shaft.Parent = workspace
-                    local headL = Instance.new("WedgePart")
-                    headL.Name = _RandomName("", 6)
-                    headL.Anchored = true
-                    headL.CanCollide = false
-                    headL.CanQuery = false
-                    headL.CanTouch = false
-                    headL.Size = Vector3.new(0.4 * scale, 0.25 * scale, 0.2 * scale)
-                    headL.Color = Color3.fromRGB(0, 255, 110)
-                    headL.Material = Enum.Material.SmoothPlastic
-                    headL.Transparency = 0
-                    headL.Parent = workspace
-                    local headR = Instance.new("WedgePart")
-                    headR.Name = _RandomName("", 6)
-                    headR.Anchored = true
-                    headR.CanCollide = false
-                    headR.CanQuery = false
-                    headR.CanTouch = false
-                    headR.Size = Vector3.new(0.4 * scale, 0.25 * scale, 0.2 * scale)
-                    headR.Color = Color3.fromRGB(0, 255, 110)
-                    headR.Material = Enum.Material.SmoothPlastic
-                    headR.Transparency = 0
-                    headR.Parent = workspace
-                    AimReckBillboards[plr] = { shaft = shaft, headL = headL, headR = headR }
+                    AimReckBillboards[plr] = { shaft = shaft }
                 end)
                 data = AimReckBillboards[plr]
             end
-            if data and data.shaft and data.shaft.Parent and data.headL and data.headL.Parent and data.headR and data.headR.Parent then
+            if data and data.shaft and data.shaft.Parent then
                 local sz = math.clamp(AIM_RECK_ARROW_SIZE or 10, 1, 50) / 10
                 data.shaft.Size = Vector3.new(0.08 * sz, 0.08 * sz, 1.6 * sz)
-                data.headL.Size = Vector3.new(0.4 * sz, 0.25 * sz, 0.2 * sz)
-                data.headR.Size = Vector3.new(0.4 * sz, 0.25 * sz, 0.2 * sz)
+                data.shaft.Color = Colors.Accent
                 local base = hrp.Position + look * (0.5 * sz)
                 local tip = base + look * (1.8 * sz)
                 local centerShaft = base + look * (0.8 * sz)
                 data.shaft.CFrame = CFrame.lookAt(centerShaft, tip)
-                local tipPos = base + look * (1.7 * sz)
-                local ang = math.rad(28)
-                local right = look:Cross(Vector3.new(0, 1, 0)).Unit
-                if right.Magnitude < 0.5 then right = look:Cross(Vector3.new(1, 0, 0)).Unit end
-                local lookL = (look * math.cos(ang) - right * math.sin(ang)).Unit
-                local lookR = (look * math.cos(ang) + right * math.sin(ang)).Unit
-                local backL = tipPos + lookL * (0.2 * sz)
-                local backR = tipPos + lookR * (0.2 * sz)
-                data.headL.CFrame = CFrame.lookAt(backL, tipPos) * CFrame.Angles(0, math.rad(-90), 0)
-                data.headR.CFrame = CFrame.lookAt(backR, tipPos) * CFrame.Angles(0, math.rad(90), 0)
             end
         end
     end
