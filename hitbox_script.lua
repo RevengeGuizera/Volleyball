@@ -121,10 +121,7 @@ end
 -- ═══════════════════════════════════════════════
 local Safe = {}
 function Safe.Call(fn, ...)
-    local ok, err = pcall(fn, ...)
-    if not ok and DEBUG_ENABLED then
-        warn("[Script] ", tostring(err))
-    end
+    local ok = pcall(fn, ...)
     return ok
 end
 function Safe.IsValidPlayer()
@@ -218,7 +215,7 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = GUI_PUBLIC_NAME
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.DisplayOrder = 100
+ScreenGui.DisplayOrder = 999
 ScreenGui.IgnoreGuiInset = true
 
 -- Try CoreGui first (executor), fallback to PlayerGui
@@ -330,17 +327,17 @@ BallConeStroke.Color = Color3.new(1, 0.9, 0.2)
 BallConeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 BallConeStroke.Parent = BallConeOutline
 local AimReckMarker = Instance.new("Frame")
-AimReckMarker.Name = "AimReckMarker"
-AimReckMarker.Size = UDim2.new(0, 52, 0, 52)
-AimReckMarker.Position = UDim2.new(0, 0, 0, 0)
+AimReckMarker.Name = _RandomName("", 8)
+AimReckMarker.Size = UDim2.new(0, 56, 0, 56)
+AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
 AimReckMarker.AnchorPoint = Vector2.new(0.5, 0.5)
 AimReckMarker.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
-AimReckMarker.BackgroundTransparency = 0.15
+AimReckMarker.BackgroundTransparency = 0.1
 AimReckMarker.BorderSizePixel = 0
 AimReckMarker.Visible = false
 AimReckMarker.ZIndex = 100
 AimReckMarker.Parent = ScreenGui
-CreateCorner(AimReckMarker, 26)
+CreateCorner(AimReckMarker, 28)
 local AimReckStroke = Instance.new("UIStroke")
 AimReckStroke.Thickness = 3
 AimReckStroke.Color = Color3.fromRGB(255, 255, 255)
@@ -1702,9 +1699,6 @@ end
 local function DebugPrintObjects()
     if debugRan then return end
     debugRan = true
-    for _, child in ipairs(workspace:GetChildren()) do
-        print("  " .. child.ClassName .. " " .. child.Name)
-    end
 end
 local hitboxConnection = nil
 local frameCounter = 0
@@ -1760,11 +1754,12 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
         BallInCone = false
     end
 
-    if AIM_RECK_ENABLED and AimReckMarker and AimReckMarker.Parent then
-        local rp = GetRootPart()
-        if rp and rp.Parent and cam then
+    if AIM_RECK_ENABLED and AimReckMarker and ScreenGui and ScreenGui.Parent then
+        if not AimReckMarker.Parent then AimReckMarker.Parent = ScreenGui end
+        local cam = workspace.CurrentCamera
+        if cam and cam.ViewportSize and cam.ViewportSize.X > 0 and cam.ViewportSize.Y > 0 then
             local vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
-            local m = 50
+            local m = 40
             if ball and ball.Parent then
                 local v2 = cam:WorldToViewportPoint(ball.Position)
                 AimReckMarker.Position = UDim2.new(0, math.clamp(v2.X, m, vw - m), 0, math.clamp(v2.Y, m, vh - m))
@@ -1773,8 +1768,11 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
             end
             AimReckMarker.Visible = true
         else
-            AimReckMarker.Visible = false
+            AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
+            AimReckMarker.Visible = true
         end
+    elseif AimReckMarker and AimReckMarker.Parent then
+        AimReckMarker.Visible = false
     end
 
     if BufferOn and frameCounter % 60 == 0 and #B >= 2 then end
@@ -1874,5 +1872,3 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification", { Title = "VL", Text = "OK", Duration = 2 })
 end)
-
-if DEBUG_ENABLED then print("[VL] ok") end
