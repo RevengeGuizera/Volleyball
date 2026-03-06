@@ -238,7 +238,7 @@ while not ScreenGui.Parent and Cleanup._active do
     if not ScreenGui.Parent and CoreGui then pcall(function() ScreenGui.Parent = CoreGui end) end
     if not ScreenGui.Parent then task.wait(0.3) end
 end
-if not ScreenGui.Parent then return end
+-- Não fazer return: o script continua; RenderStepped reparenta o GUI se necessário
 
 -- ═══════════════════════════════════════════════
 -- UTILITY FUNCTIONS
@@ -429,6 +429,7 @@ AimReckArrow4.Parent = ScreenGui
 CreateCorner(AimReckArrow4, 5)
 
 local AimReckArrows = { AimReckMarker, AimReckBackup, AimReckArrow3, AimReckArrow4 }
+local AimReckBillboards = {}
 
 local AimReckHintText = Instance.new("TextLabel")
 AimReckHintText.Name = _RandomName("", 6)
@@ -962,7 +963,7 @@ local ReckToggleLabel = Instance.new("TextLabel")
 ReckToggleLabel.Size = UDim2.new(0.75, 0, 1, 0)
 ReckToggleLabel.Position = UDim2.new(0, 16, 0, 0)
 ReckToggleLabel.BackgroundTransparency = 1
-ReckToggleLabel.Text = "Mostra onde a bola vai cair (recepção / ajudar amigos)"
+ReckToggleLabel.Text = "Setas em cima dos inimigos (direção do olhar)"
 ReckToggleLabel.TextSize = 12
 ReckToggleLabel.Font = Enum.Font.SourceSansSemibold
 ReckToggleLabel.TextColor3 = Colors.TextSecondary
@@ -1951,6 +1952,10 @@ local function UpdateAimReck()
         if hintText and hintText.Parent then hintText.Visible = false end
         if targetSpot and targetSpot.Parent then targetSpot.Visible = false end
         if landing and landing.Parent then landing.Transparency = 1 end
+        for plr, data in pairs(AimReckBillboards) do
+            if data and data.billboard and data.billboard.Parent then pcall(function() data.billboard:Destroy() end) end
+        end
+        AimReckBillboards = {}
     end
 
     if not AIM_RECK_ENABLED then hideAll(); return end
@@ -1979,26 +1984,20 @@ local function UpdateAimReck()
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 if hrp and hrp.Parent then
                     local pos = hrp.Position
-                    local cf = hrp.CFrame
-                    if cf then
-                        local look = cf.LookVector
-                        if not look or look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
-                        local front = pos + look * 6
-                        local ok, a1, b1 = pcall(function() return cam:WorldToViewportPoint(pos) end)
-                        if ok and a1 ~= nil then
-                            local sx, sy, on1 = getViewportXY(a1, b1)
-                            local ok2, a2, b2 = pcall(function() return cam:WorldToViewportPoint(front) end)
-                            if ok2 and a2 ~= nil then
-                                local sx2, sy2 = getViewportXY(a2, b2)
-                                local dx = sx2 - sx
-                                local dy = sy2 - sy
-                                if dx * dx + dy * dy >= 1 then
-                                    local dist = (pos - camPos).Magnitude
-                                    if dist == dist and dist < 1000 then
-                                        list[#list + 1] = { sx = sx, sy = sy, rot = math.deg(math.atan2(-dy, dx)), dist = dist, pos = pos, look = look }
-                                    end
-                                end
-                            end
+                    local look = hrp.CFrame.LookVector
+                    if look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
+                    local ok, v2, v2b = pcall(function()
+                        local a, _ = cam:WorldToViewportPoint(pos)
+                        local b, _ = cam:WorldToViewportPoint(pos + look * 5)
+                        return a, b
+                    end)
+                    if ok and v2 and v2.X and v2.Y then
+                        local sx, sy = v2.X, v2.Y
+                        local dx = (v2b and v2b.X) and (v2b.X - sx) or 0
+                        local dy = (v2b and v2b.Y) and (v2b.Y - sy) or 0
+                        local dist = (pos - camPos).Magnitude
+                        if dist < 1000 and dist == dist then
+                            list[#list + 1] = { plr = plr, hrp = hrp, sx = sx, sy = sy, rot = math.deg(math.atan2(-dy, dx)), dist = dist, pos = pos, look = look }
                         end
                     end
                 end
@@ -2010,32 +2009,49 @@ local function UpdateAimReck()
         table.sort(list, function(a, b) return (a.dist or 0) < (b.dist or 0) end)
     end
 
-    local pulse = 1 + 0.06 * math.sin(tick() * 3.5)
-    for i = 1, 4 do
-        local arr = arrows and arrows[i]
-        if not arr then break end
-        local d = list[i]
-        if d and gui and gui.Parent then
-            if arr.Parent ~= gui then arr.Parent = gui end
-            arr.Position = UDim2.new(0, math.floor(d.sx or 0), 0, math.floor(d.sy or 0))
-            arr.Rotation = d.rot or 0
-            arr.Visible = true
-            local dist = d.dist or 0
-            if dist < 18 then
-                arr.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
-                arr.BackgroundTransparency = 0
-            elseif dist < 35 then
-                arr.BackgroundColor3 = Color3.fromRGB(200, 200, 60)
-                arr.BackgroundTransparency = 0
-            else
-                arr.BackgroundColor3 = Color3.fromRGB(40, 140, 70)
-                arr.BackgroundTransparency = 0.25
+    for i = 1, 4 do local a = arrows and arrows[i]; if a and a.Parent then a.Visible = false end end
+
+    local seen = {}
+    for _, d in ipairs(list) do
+        local plr, hrp, rot = d.plr, d.hrp, d.rot
+        if plr and hrp and hrp.Parent and gui and gui.Parent then
+            seen[plr] = true
+            local data = AimReckBillboards[plr]
+            if not data or not data.billboard or not data.billboard.Parent then
+                pcall(function()
+                    local bg = Instance.new("BillboardGui")
+                    bg.Name = _RandomName("", 6)
+                    bg.Adornee = hrp
+                    bg.Parent = gui
+                    bg.Size = UDim2.new(0, 80, 0, 40)
+                    bg.StudsOffset = Vector3.new(0, 2.5, 0)
+                    bg.AlwaysOnTop = true
+                    local lbl = Instance.new("TextLabel")
+                    lbl.Size = UDim2.new(1, 0, 1, 0)
+                    lbl.BackgroundColor3 = Color3.fromRGB(50, 200, 80)
+                    lbl.BackgroundTransparency = 0.2
+                    lbl.BorderSizePixel = 0
+                    lbl.Text = "►"
+                    lbl.TextColor3 = Color3.new(1, 1, 1)
+                    lbl.TextScaled = true
+                    lbl.Font = Enum.Font.GothamBold
+                    lbl.Parent = bg
+                    CreateCorner(lbl, 6)
+                    AimReckBillboards[plr] = { billboard = bg, label = lbl }
+                end)
+                data = AimReckBillboards[plr]
             end
-            local baseW, baseH = 50, 28
-            if i == 1 then baseW, baseH = 54, 30 elseif i == 3 then baseW, baseH = 44, 24 elseif i == 4 then baseW, baseH = 40, 22 end
-            arr.Size = UDim2.new(0, math.floor(baseW * pulse), 0, math.floor(baseH * pulse))
-        else
-            if arr.Parent then arr.Visible = false end
+            if data and data.billboard and data.billboard.Parent and data.label then
+                data.billboard.Adornee = hrp
+                data.label.Rotation = rot or 0
+                data.billboard.Enabled = true
+            end
+        end
+    end
+    for plr, data in pairs(AimReckBillboards) do
+        if not seen[plr] and data and data.billboard then
+            pcall(function() data.billboard:Destroy() end)
+            AimReckBillboards[plr] = nil
         end
     end
 
@@ -2090,16 +2106,12 @@ local function UpdateAimReck()
         if targetSpot.Parent then targetSpot.Visible = false end
         return
     end
-    local ok3, aHit, bHit = pcall(function() return cam:WorldToViewportPoint(hit) end)
-    if not ok3 or aHit == nil then
+    local ok3, aHit = pcall(function() return cam:WorldToViewportPoint(hit) end)
+    if not ok3 or not aHit or not aHit.X or not aHit.Y then
         if targetSpot.Parent then targetSpot.Visible = false end
         return
     end
-    local tx, ty, onScreen = getViewportXY(aHit, bHit)
-    if type(tx) ~= "number" or type(ty) ~= "number" or not onScreen then
-        if targetSpot.Parent then targetSpot.Visible = false end
-        return
-    end
+    local tx, ty = aHit.X, aHit.Y
     if tx < -40 or tx > vw + 40 or ty < -40 or ty > vh + 40 then
         if targetSpot.Parent then targetSpot.Visible = false end
         return
@@ -2116,6 +2128,8 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
         local pg = LocalPlayer:FindFirstChild("PlayerGui")
         if pg then pcall(function() ScreenGui.Parent = pg end) end
     end
+    -- Aim Reck atualiza sempre (assim funciona mesmo se o resto do GUI atrasar)
+    pcall(UpdateAimReck)
     if not Safe.IsValidGui() then return end
 
     local cam = workspace.CurrentCamera
@@ -2162,8 +2176,6 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
         BallConeOutline.Visible = false
         BallInCone = false
     end
-
-    pcall(UpdateAimReck)
 
     if BufferOn and frameCounter % 60 == 0 and #B >= 2 then end
 
