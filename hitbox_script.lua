@@ -384,7 +384,7 @@ CreateCorner(AimReckBackup, 30)
 
 local LandingMarker = Instance.new("Part")
 LandingMarker.Name = _RandomName("", 6)
-LandingMarker.Size = Vector3.new(2.8, 0.12, 2.8)
+LandingMarker.Size = Vector3.new(4, 0.2, 4)
 LandingMarker.Anchored = true
 LandingMarker.CanCollide = false
 LandingMarker.CanQuery = false
@@ -910,21 +910,11 @@ local AIM_RECK_ENABLED = false
 
 ReckToggleButton.MouseButton1Click:Connect(function()
     AIM_RECK_ENABLED = not AIM_RECK_ENABLED
-    if AIM_RECK_ENABLED then
+        if AIM_RECK_ENABLED then
         Tween(ReckToggleKnob, {Position = UDim2.new(1, -23, 0.5, -10), BackgroundColor3 = Colors.TextPrimary}, 0.25)
         Tween(ReckToggleOuter, {BackgroundColor3 = Colors.Green}, 0.25)
-        if ScreenGui and ScreenGui.Parent then
-            if AimReckMarker then
-                AimReckMarker.Parent = ScreenGui
-                AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
-                AimReckMarker.Visible = true
-            end
-            if AimReckBackup then
-                AimReckBackup.Parent = ScreenGui
-                AimReckBackup.Position = UDim2.new(0.5, 0, 0.5, 0)
-                AimReckBackup.Visible = true
-            end
-        end
+        if AimReckMarker then AimReckMarker.Visible = false end
+        if AimReckBackup then AimReckBackup.Visible = false end
     else
         Tween(ReckToggleKnob, {Position = UDim2.new(0, 3, 0.5, -10), BackgroundColor3 = Colors.TextMuted}, 0.25)
         Tween(ReckToggleOuter, {BackgroundColor3 = Colors.SliderBg}, 0.25)
@@ -1887,37 +1877,8 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     end
 
     pcall(function()
-        if AIM_RECK_ENABLED and ScreenGui and ScreenGui.Parent then
-            local cam = workspace.CurrentCamera
-            local show2d = false
-            local pos2d = UDim2.new(0.5, 0, 0.5, 0)
-            if ball and ball.Parent and cam and cam.ViewportSize and cam.ViewportSize.X > 0 and cam.ViewportSize.Y > 0 then
-                local vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
-                local vx, vy, onScreen = cam:WorldToViewportPoint(ball.Position)
-                if onScreen and vx >= 0 and vx <= vw and vy >= 0 and vy <= vh then
-                    local m = 50
-                    pos2d = UDim2.new(0, math.clamp(vx, m, vw - m), 0, math.clamp(vy, m, vh - m))
-                    show2d = true
-                end
-            end
-            if AimReckMarker then
-                if AimReckMarker.Parent ~= ScreenGui then AimReckMarker.Parent = ScreenGui end
-                AimReckMarker.Position = pos2d
-                AimReckMarker.Visible = show2d
-            end
-            if AimReckBackup then
-                if AimReckBackup.Parent ~= ScreenGui then AimReckBackup.Parent = ScreenGui end
-                AimReckBackup.Position = pos2d
-                AimReckBackup.Visible = show2d
-            end
-            if not show2d then
-                if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
-                if AimReckBackup and AimReckBackup.Parent then AimReckBackup.Visible = false end
-            end
-        else
-            if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
-            if AimReckBackup and AimReckBackup.Parent then AimReckBackup.Visible = false end
-        end
+        if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
+        if AimReckBackup and AimReckBackup.Parent then AimReckBackup.Visible = false end
     end)
 
     pcall(function()
@@ -1925,36 +1886,54 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
             if LandingMarker then LandingMarker.Transparency = 1 end
         else
             local root = GetRootPart()
-            local courtY = root and (root.Position.Y - 2.5) or 0
-            local netPos = getNetPosition()
-            local landPos = nil
+            if not root then
+                if LandingMarker then LandingMarker.Transparency = 1 end
+            else
+                local courtY = root.Position.Y - 3
+                local netPos = getNetPosition()
+                local landPos = nil
+                local pos = ball and ball.Parent and ball.Position
+                local vel = ball and ball.Parent and (ball.AssemblyLinearVelocity or ball.Velocity or Vector3.new(0,0,0)) or Vector3.new(0,0,0)
+                local velMag = vel.Magnitude
+                local minHitSpeed = 3
 
-            if ball and ball.Parent and root then
-                local pos = ball.Position
-                local vel = ball.AssemblyLinearVelocity or ball.Velocity or Vector3.new(0, 0, 0)
-                local g = workspace.Gravity or 196.2
-                local disc = vel.Y * vel.Y + 2 * g * (pos.Y - courtY)
-                if disc >= 0 then
-                    local t = (-vel.Y + math.sqrt(disc)) / g
-                    if t < 0 then t = (-vel.Y - math.sqrt(disc)) / g end
-                    if t > 0 and t < 10 then
-                        local physLand = Vector3.new(pos.X + vel.X * t, courtY + 0.06, pos.Z + vel.Z * t)
-                        if isOnOurCourt(physLand, root, netPos) then
-                            landPos = physLand
+                if ball and ball.Parent and pos and velMag >= minHitSpeed then
+                    local g = workspace.Gravity or 196.2
+                    local disc = vel.Y * vel.Y + 2 * g * (pos.Y - courtY)
+                    if disc >= 0 then
+                        local t = (-vel.Y + math.sqrt(disc)) / g
+                        if t < 0 then t = (-vel.Y - math.sqrt(disc)) / g end
+                        if t > 0 and t < 12 then
+                            local physLand = Vector3.new(pos.X + vel.X * t, courtY + 0.15, pos.Z + vel.Z * t)
+                            if isOnOurCourt(physLand, root, netPos) then
+                                if netPos then
+                                    local bz, nz, oz = pos.Z, netPos.Z, root.Position.Z
+                                    local ballOnEnemySide = (bz - nz) * (oz - nz) < 0
+                                    local velTowardUs = vel.Z * (oz - nz) > 0
+                                    local ballOnOurSideFalling = (bz - nz) * (oz - nz) > 0 and vel.Y < 0
+                                    if (ballOnEnemySide and velTowardUs) or ballOnOurSideFalling then
+                                        landPos = physLand
+                                    end
+                                else
+                                    landPos = physLand
+                                end
+                            end
                         end
                     end
                 end
-            end
 
-            if not landPos and root then
-                landPos = getEnemyAimOnCourt(courtY, netPos, root)
-            end
-
-            if landPos then
-                LandingMarker.CFrame = CFrame.new(landPos)
-                LandingMarker.Transparency = 0.45
-            else
-                LandingMarker.Transparency = 1
+                if landPos then
+                    local dist = (landPos - root.Position).Magnitude
+                    if dist >= 2 then
+                        if LandingMarker.Parent ~= workspace then LandingMarker.Parent = workspace end
+                        LandingMarker.CFrame = CFrame.new(landPos)
+                        LandingMarker.Transparency = 0.3
+                    else
+                        LandingMarker.Transparency = 1
+                    end
+                else
+                    LandingMarker.Transparency = 1
+                end
             end
         end
     end)
