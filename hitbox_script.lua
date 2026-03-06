@@ -239,6 +239,7 @@ if not ScreenGui.Parent then return end
 -- UTILITY FUNCTIONS
 -- ═══════════════════════════════════════════════
 local function CreateCorner(parent, radius)
+    if not parent then return nil end
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, radius or 8)
     corner.Parent = parent
@@ -246,6 +247,7 @@ local function CreateCorner(parent, radius)
 end
 
 local function CreateStroke(parent, color, thickness)
+    if not parent then return nil end
     local stroke = Instance.new("UIStroke")
     stroke.Color = color or Colors.Border
     stroke.Thickness = thickness or 1
@@ -255,6 +257,7 @@ local function CreateStroke(parent, color, thickness)
 end
 
 local function CreateGradient(parent, c1, c2, rotation)
+    if not parent then return nil end
     local gradient = Instance.new("UIGradient")
     gradient.Color = ColorSequence.new(c1, c2)
     gradient.Rotation = rotation or 90
@@ -1915,6 +1918,182 @@ local function ResetAll()
     pcall(function() ApplyGameHitboxes(0) end)
 end
 
+-- Aim Reck: atualização única e à prova de falhas (nunca dá erro)
+local function UpdateAimReck()
+    local arrows = AimReckArrows
+    local hintText = AimReckHintText
+    local targetSpot = AimReckTargetSpot
+    local landing = LandingMarker
+    local gui = ScreenGui
+
+    local function hideAll()
+        if arrows then for i = 1, 4 do local a = arrows[i]; if a and a.Parent then a.Visible = false end end end
+        if hintText and hintText.Parent then hintText.Visible = false end
+        if targetSpot and targetSpot.Parent then targetSpot.Visible = false end
+        if landing and landing.Parent then landing.Transparency = 1 end
+    end
+
+    if not AIM_RECK_ENABLED then hideAll(); return end
+    if not gui or not gui.Parent then hideAll(); return end
+
+    local cam = workspace and workspace.CurrentCamera
+    if not cam then hideAll(); return end
+
+    local vw = (cam.ViewportSize and cam.ViewportSize.X) or 800
+    local vh = (cam.ViewportSize and cam.ViewportSize.Y) or 600
+    if type(vw) ~= "number" or type(vh) ~= "number" or vw < 100 or vh < 100 then hideAll(); return end
+
+    local list = {}
+    local camPos = cam.CFrame and cam.CFrame.Position
+    if not camPos then hideAll(); return end
+
+    local playersList = Players and Players:GetPlayers()
+    if not playersList then hideAll(); return end
+
+    for _, plr in ipairs(playersList) do
+        if plr == LocalPlayer then
+            -- skip
+        else
+            local char = plr and plr.Character
+            if char and char.Parent then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp and hrp.Parent then
+                    local pos = hrp.Position
+                    local cf = hrp.CFrame
+                    if cf then
+                        local look = cf.LookVector
+                        if not look or look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
+                        local front = pos + look * 6
+                        local ok, v2, depth = pcall(function() return cam:WorldToViewportPoint(pos) end)
+                        if ok and v2 then
+                            local sx = type(v2) == "userdata" and v2.X or v2
+                            local sy = type(v2) == "userdata" and v2.Y or depth
+                            local on1 = (type(depth) == "number" and depth > 0) or (v2 and true)
+                            if type(sx) ~= "number" then sx = 0 end
+                            if type(sy) ~= "number" then sy = 0 end
+                            local ok2, v2b, depth2 = pcall(function() return cam:WorldToViewportPoint(front) end)
+                            if ok2 and v2b then
+                                local sx2 = type(v2b) == "userdata" and v2b.X or v2b
+                                local sy2 = type(v2b) == "userdata" and v2b.Y or depth2
+                                if type(sx2) ~= "number" then sx2 = sx end
+                                if type(sy2) ~= "number" then sy2 = sy end
+                                local dx = sx2 - sx
+                                local dy = sy2 - sy
+                                if dx * dx + dy * dy >= 4 then
+                                    local dist = (pos - camPos).Magnitude
+                                    if dist == dist then
+                                        list[#list + 1] = { sx = sx, sy = sy, rot = math.deg(math.atan2(-dy, dx)), dist = dist, pos = pos, look = look }
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if #list > 0 then
+        table.sort(list, function(a, b) return (a.dist or 0) < (b.dist or 0) end)
+    end
+
+    local pulse = 1 + 0.06 * math.sin(tick() * 3.5)
+    for i = 1, 4 do
+        local arr = arrows and arrows[i]
+        if not arr then break end
+        local d = list[i]
+        if d and gui and gui.Parent then
+            if arr.Parent ~= gui then arr.Parent = gui end
+            arr.Position = UDim2.new(0, d.sx or 0, 0, d.sy or 0)
+            arr.Rotation = d.rot or 0
+            arr.Visible = true
+            local dist = d.dist or 0
+            if dist < 18 then
+                arr.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
+                arr.BackgroundTransparency = 0
+            elseif dist < 35 then
+                arr.BackgroundColor3 = Color3.fromRGB(200, 200, 60)
+                arr.BackgroundTransparency = 0
+            else
+                arr.BackgroundColor3 = Color3.fromRGB(40, 140, 70)
+                arr.BackgroundTransparency = 0.25
+            end
+            local baseW, baseH = 50, 28
+            if i == 1 then baseW, baseH = 54, 30 elseif i == 3 then baseW, baseH = 44, 24 elseif i == 4 then baseW, baseH = 40, 22 end
+            arr.Size = UDim2.new(0, math.floor(baseW * pulse), 0, math.floor(baseH * pulse))
+        else
+            if arr.Parent then arr.Visible = false end
+        end
+    end
+
+    if landing and landing.Parent then landing.Transparency = 1 end
+
+    local root = GetRootPart()
+    local netPos = (root and getNetPosition()) or nil
+    local courtY = (root and root.Position and (root.Position.Y - 3)) or 0
+
+    if #list == 0 then
+        if hintText and hintText.Parent then hintText.Visible = false end
+        if targetSpot and targetSpot.Parent then targetSpot.Visible = false end
+        return
+    end
+
+    if hintText and gui and gui.Parent then
+        if hintText.Parent ~= gui then hintText.Parent = gui end
+        local d1 = list[1]
+        local distStr = (d1 and type(d1.dist) == "number") and math.floor(d1.dist) or "?"
+        hintText.Text = "Seta = direção do inimigo  |  Inimigos: " .. #list .. "  |  Mais perto: " .. tostring(distStr) .. "m"
+        hintText.Visible = true
+    end
+
+    local first = list[1]
+    if not targetSpot or not first or not first.pos or not first.look or not root then
+        if targetSpot and targetSpot.Parent then targetSpot.Visible = false end
+        return
+    end
+
+    local origin = first.pos
+    local dir = first.look
+    local dy = courtY - origin.Y
+    if type(dy) ~= "number" or type(dir.Y) ~= "number" then
+        if targetSpot.Parent then targetSpot.Visible = false end
+        return
+    end
+    if math.abs(dir.Y) < 0.01 then
+        if targetSpot.Parent then targetSpot.Visible = false end
+        return
+    end
+    local t = dy / dir.Y
+    if t ~= t or t <= 0 or t > 500 then
+        if targetSpot.Parent then targetSpot.Visible = false end
+        return
+    end
+    local hit = origin + dir * t
+    if not isOnOurCourt(hit, root, netPos) then
+        if targetSpot.Parent then targetSpot.Visible = false end
+        return
+    end
+    local ok3, v2hit, depthHit = pcall(function() return cam:WorldToViewportPoint(hit) end)
+    if not ok3 or not v2hit then
+        if targetSpot.Parent then targetSpot.Visible = false end
+        return
+    end
+    local tx = (v2hit and v2hit.X ~= nil) and v2hit.X or v2hit
+    local ty = (v2hit and v2hit.Y ~= nil) and v2hit.Y or depthHit
+    local onScreen = (type(depthHit) == "number" and depthHit > 0) or (v2hit and true)
+    if type(tx) ~= "number" or type(ty) ~= "number" or not onScreen then
+        if targetSpot.Parent then targetSpot.Visible = false end
+        return
+    end
+    if tx < -40 or tx > vw + 40 or ty < -40 or ty > vh + 40 then
+        if targetSpot.Parent then targetSpot.Visible = false end
+        return
+    end
+    if targetSpot.Parent ~= gui then targetSpot.Parent = gui end
+    targetSpot.Position = UDim2.new(0, math.floor(tx), 0, math.floor(ty))
+    targetSpot.Visible = true
+end
+
 hitboxConnection = RunService.RenderStepped:Connect(function()
     if not Cleanup._active then return end
     if not Safe.IsValidGui() then return end
@@ -1958,136 +2137,7 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
         BallInCone = false
     end
 
-    pcall(function()
-        if not AIM_RECK_ENABLED then
-            for _, arr in ipairs(AimReckArrows) do
-                if arr and arr.Parent then arr.Visible = false end
-            end
-            if AimReckHintText then AimReckHintText.Visible = false end
-            if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
-            if LandingMarker then LandingMarker.Transparency = 1 end
-        else
-            local cam = workspace.CurrentCamera
-            if not cam or not ScreenGui or not ScreenGui.Parent then
-                for _, arr in ipairs(AimReckArrows) do
-                    if arr and arr.Parent then arr.Visible = false end
-                end
-                if AimReckHintText then AimReckHintText.Visible = false end
-                if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
-                if LandingMarker then LandingMarker.Transparency = 1 end
-            else
-                local list = {}
-                local vw = cam.ViewportSize and cam.ViewportSize.X or 800
-                local vh = cam.ViewportSize and cam.ViewportSize.Y or 600
-                if vw < 100 or vh < 100 then
-                    for _, arr in ipairs(AimReckArrows) do if arr and arr.Parent then arr.Visible = false end end
-                    if AimReckHintText then AimReckHintText.Visible = false end
-                    if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
-                else
-                local camPos = cam.CFrame.Position
-                for _, plr in ipairs(Players:GetPlayers()) do
-                    if plr ~= LocalPlayer and plr.Character then
-                        local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-                        if hrp and hrp.Parent then
-                            local pos = hrp.Position
-                            local look = hrp.CFrame.LookVector
-                            if look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
-                            local front = pos + look * 6
-                            local sx, sy, on1 = cam:WorldToViewportPoint(pos)
-                            local sx2, sy2 = cam:WorldToViewportPoint(front)
-                            if on1 and sx >= -80 and sx <= vw + 80 and sy >= -80 and sy <= vh + 80 then
-                                local dx = sx2 - sx
-                                local dy = sy2 - sy
-                                if dx * dx + dy * dy >= 4 then
-                                    local dist = (pos - camPos).Magnitude
-                                    list[#list + 1] = { sx = sx, sy = sy, rot = math.deg(math.atan2(-dy, dx)), dist = dist, pos = pos, look = look }
-                                end
-                            end
-                        end
-                    end
-                end
-                if #list > 0 then table.sort(list, function(a, b) return a.dist < b.dist end) end
-                local pulse = 1 + 0.06 * math.sin(tick() * 3.5)
-                for i = 1, 4 do
-                    local arr = AimReckArrows[i]
-                    if not arr then break end
-                    if i <= #list then
-                        local d = list[i]
-                        if arr.Parent ~= ScreenGui then arr.Parent = ScreenGui end
-                        arr.Position = UDim2.new(0, d.sx, 0, d.sy)
-                        arr.Rotation = d.rot
-                        arr.Visible = true
-                        if d.dist < 18 then
-                            arr.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
-                            arr.BackgroundTransparency = 0
-                        elseif d.dist < 35 then
-                            arr.BackgroundColor3 = Color3.fromRGB(200, 200, 60)
-                            arr.BackgroundTransparency = 0
-                        else
-                            arr.BackgroundColor3 = Color3.fromRGB(40, 140, 70)
-                            arr.BackgroundTransparency = 0.25
-                        end
-                        local baseW, baseH = 50, 28
-                        if i == 1 then baseW, baseH = 54, 30
-                        elseif i == 3 then baseW, baseH = 44, 24
-                        elseif i == 4 then baseW, baseH = 40, 22
-                        end
-                        arr.Size = UDim2.new(0, math.floor(baseW * pulse), 0, math.floor(baseH * pulse))
-                    else
-                        arr.Visible = false
-                    end
-                end
-                if LandingMarker then LandingMarker.Transparency = 1 end
-                local root = GetRootPart()
-                local netPos = root and getNetPosition() or nil
-                local courtY = root and (root.Position.Y - 3) or 0
-                if #list > 0 then
-                    if AimReckHintText then
-                        if AimReckHintText.Parent ~= ScreenGui then AimReckHintText.Parent = ScreenGui end
-                        local d1 = math.floor(list[1].dist)
-                        AimReckHintText.Text = "Seta = direção do inimigo  |  Inimigos: " .. #list .. "  |  Mais perto: " .. d1 .. "m"
-                        AimReckHintText.Visible = true
-                    end
-                    local first = list[1]
-                    if first.pos and first.look and root then
-                        local origin = first.pos
-                        local dir = first.look
-                        local dy = courtY - origin.Y
-                        if math.abs(dir.Y) >= 0.01 then
-                            local t = dy / dir.Y
-                            if t > 0 then
-                                local hit = origin + dir * t
-                                if isOnOurCourt(hit, root, netPos) then
-                                    local tx, ty, onScreen = cam:WorldToViewportPoint(hit)
-                                    if onScreen and tx >= -40 and tx <= vw + 40 and ty >= -40 and ty <= vh + 40 then
-                                        if AimReckTargetSpot then
-                                            if AimReckTargetSpot.Parent ~= ScreenGui then AimReckTargetSpot.Parent = ScreenGui end
-                                            AimReckTargetSpot.Position = UDim2.new(0, tx, 0, ty)
-                                            AimReckTargetSpot.Visible = true
-                                        end
-                                    else
-                                        if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
-                                    end
-                                else
-                                    if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
-                                end
-                            else
-                                if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
-                            end
-                        else
-                            if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
-                        end
-                    else
-                        if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
-                    end
-                else
-                    if AimReckHintText then AimReckHintText.Visible = false end
-                    if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
-                end
-                end
-            end
-        end
-    end)
+    pcall(UpdateAimReck)
 
     if BufferOn and frameCounter % 60 == 0 and #B >= 2 then end
 
