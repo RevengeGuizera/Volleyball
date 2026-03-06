@@ -2023,27 +2023,30 @@ local function UpdateAimReck()
                     bg.Name = _RandomName("", 6)
                     bg.Adornee = hrp
                     bg.Parent = gui
-                    bg.Size = UDim2.new(0, 80, 0, 40)
-                    bg.StudsOffset = Vector3.new(0, 2.5, 0)
+                    bg.Size = UDim2.new(0, 120, 0, 50)
                     bg.AlwaysOnTop = true
+                    bg.StudsOffset = Vector3.new(0, 1.5, 0)
+                    pcall(function() bg.StudsOffsetWorldSpace = hrp.CFrame.LookVector * 2 end)
                     local lbl = Instance.new("TextLabel")
                     lbl.Size = UDim2.new(1, 0, 1, 0)
-                    lbl.BackgroundColor3 = Color3.fromRGB(50, 200, 80)
-                    lbl.BackgroundTransparency = 0.2
+                    lbl.BackgroundTransparency = 1
                     lbl.BorderSizePixel = 0
-                    lbl.Text = "►"
-                    lbl.TextColor3 = Color3.new(1, 1, 1)
+                    lbl.Text = "➤"
+                    lbl.TextColor3 = Color3.fromRGB(0, 255, 100)
                     lbl.TextScaled = true
                     lbl.Font = Enum.Font.GothamBold
+                    lbl.TextStrokeTransparency = 0.3
+                    lbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                     lbl.Parent = bg
-                    CreateCorner(lbl, 6)
                     AimReckBillboards[plr] = { billboard = bg, label = lbl }
                 end)
                 data = AimReckBillboards[plr]
             end
             if data and data.billboard and data.billboard.Parent and data.label then
                 data.billboard.Adornee = hrp
+                pcall(function() data.billboard.StudsOffsetWorldSpace = hrp.CFrame.LookVector * 2 end)
                 data.label.Rotation = rot or 0
+                data.label.TextColor3 = Color3.fromRGB(0, 255, 100)
                 data.billboard.Enabled = true
             end
         end
