@@ -339,7 +339,7 @@ BallConeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 BallConeStroke.Parent = BallConeOutline
 local AimReckMarker = Instance.new("Frame")
 AimReckMarker.Name = _RandomName("", 8)
-AimReckMarker.Size = UDim2.new(0, 60, 0, 60)
+AimReckMarker.Size = UDim2.new(0, 50, 0, 28)
 AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
 AimReckMarker.AnchorPoint = Vector2.new(0.5, 0.5)
 AimReckMarker.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
@@ -347,19 +347,20 @@ AimReckMarker.BackgroundTransparency = 0
 AimReckMarker.BorderSizePixel = 0
 AimReckMarker.Visible = false
 AimReckMarker.ZIndex = 9999
+AimReckMarker.Rotation = 0
 AimReckMarker.Parent = ScreenGui
-CreateCorner(AimReckMarker, 30)
+CreateCorner(AimReckMarker, 6)
 local AimReckStroke = Instance.new("UIStroke")
-AimReckStroke.Thickness = 3
-AimReckStroke.Color = Color3.fromRGB(255, 255, 255)
-AimReckStroke.Transparency = 0.1
+AimReckStroke.Thickness = 2
+AimReckStroke.Color = Color3.new(1, 1, 1)
+AimReckStroke.Transparency = 0.2
 AimReckStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 AimReckStroke.Parent = AimReckMarker
 local AimReckLabel = Instance.new("TextLabel")
 AimReckLabel.Name = "Label"
 AimReckLabel.Size = UDim2.new(1, 0, 1, 0)
 AimReckLabel.BackgroundTransparency = 1
-AimReckLabel.Text = "▼"
+AimReckLabel.Text = "►"
 AimReckLabel.TextColor3 = Color3.new(1, 1, 1)
 AimReckLabel.TextScaled = true
 AimReckLabel.Font = Enum.Font.GothamBold
@@ -367,20 +368,97 @@ AimReckLabel.Parent = AimReckMarker
 
 local AimReckBackup = Instance.new("TextLabel")
 AimReckBackup.Name = _RandomName("", 6)
-AimReckBackup.Size = UDim2.new(0, 60, 0, 60)
+AimReckBackup.Size = UDim2.new(0, 50, 0, 28)
 AimReckBackup.Position = UDim2.new(0.5, 0, 0.5, 0)
 AimReckBackup.AnchorPoint = Vector2.new(0.5, 0.5)
 AimReckBackup.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
 AimReckBackup.BackgroundTransparency = 0
-AimReckBackup.Text = "▼"
+AimReckBackup.Text = "►"
 AimReckBackup.TextColor3 = Color3.new(1, 1, 1)
 AimReckBackup.TextScaled = true
 AimReckBackup.Font = Enum.Font.GothamBold
 AimReckBackup.Visible = false
 AimReckBackup.ZIndex = 9998
 AimReckBackup.BorderSizePixel = 0
+AimReckBackup.Rotation = 0
 AimReckBackup.Parent = ScreenGui
-CreateCorner(AimReckBackup, 30)
+CreateCorner(AimReckBackup, 6)
+
+local AimReckArrow3 = Instance.new("TextLabel")
+AimReckArrow3.Name = _RandomName("", 6)
+AimReckArrow3.Size = UDim2.new(0, 44, 0, 24)
+AimReckArrow3.Position = UDim2.new(0.5, 0, 0.5, 0)
+AimReckArrow3.AnchorPoint = Vector2.new(0.5, 0.5)
+AimReckArrow3.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
+AimReckArrow3.BackgroundTransparency = 0
+AimReckArrow3.Text = "►"
+AimReckArrow3.TextColor3 = Color3.new(1, 1, 1)
+AimReckArrow3.TextScaled = true
+AimReckArrow3.Font = Enum.Font.GothamBold
+AimReckArrow3.Visible = false
+AimReckArrow3.ZIndex = 9997
+AimReckArrow3.BorderSizePixel = 0
+AimReckArrow3.Rotation = 0
+AimReckArrow3.Parent = ScreenGui
+CreateCorner(AimReckArrow3, 5)
+
+local AimReckArrow4 = Instance.new("TextLabel")
+AimReckArrow4.Name = _RandomName("", 6)
+AimReckArrow4.Size = UDim2.new(0, 40, 0, 22)
+AimReckArrow4.Position = UDim2.new(0.5, 0, 0.5, 0)
+AimReckArrow4.AnchorPoint = Vector2.new(0.5, 0.5)
+AimReckArrow4.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
+AimReckArrow4.BackgroundTransparency = 0
+AimReckArrow4.Text = "►"
+AimReckArrow4.TextColor3 = Color3.new(1, 1, 1)
+AimReckArrow4.TextScaled = true
+AimReckArrow4.Font = Enum.Font.GothamBold
+AimReckArrow4.Visible = false
+AimReckArrow4.ZIndex = 9996
+AimReckArrow4.BorderSizePixel = 0
+AimReckArrow4.Rotation = 0
+AimReckArrow4.Parent = ScreenGui
+CreateCorner(AimReckArrow4, 5)
+
+local AimReckArrows = { AimReckMarker, AimReckBackup, AimReckArrow3, AimReckArrow4 }
+
+local AimReckHintText = Instance.new("TextLabel")
+AimReckHintText.Name = _RandomName("", 6)
+AimReckHintText.Size = UDim2.new(0, 220, 0, 28)
+AimReckHintText.Position = UDim2.new(0.5, -110, 1, -42)
+AimReckHintText.AnchorPoint = Vector2.new(0.5, 0)
+AimReckHintText.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
+AimReckHintText.BackgroundTransparency = 0.3
+AimReckHintText.BorderSizePixel = 0
+AimReckHintText.Text = ""
+AimReckHintText.TextColor3 = Color3.fromRGB(180, 220, 180)
+AimReckHintText.TextSize = 14
+AimReckHintText.Font = Enum.Font.GothamMedium
+AimReckHintText.Visible = false
+AimReckHintText.ZIndex = 9995
+AimReckHintText.Parent = ScreenGui
+CreateCorner(AimReckHintText, 8)
+
+local AimReckTargetSpot = Instance.new("Frame")
+AimReckTargetSpot.Name = _RandomName("", 6)
+AimReckTargetSpot.Size = UDim2.new(0, 32, 0, 32)
+AimReckTargetSpot.Position = UDim2.new(0.5, 0, 0.5, 0)
+AimReckTargetSpot.AnchorPoint = Vector2.new(0.5, 0.5)
+AimReckTargetSpot.BackgroundColor3 = Color3.fromRGB(255, 200, 60)
+AimReckTargetSpot.BackgroundTransparency = 0.2
+AimReckTargetSpot.BorderSizePixel = 0
+AimReckTargetSpot.Visible = false
+AimReckTargetSpot.ZIndex = 9994
+AimReckTargetSpot.Parent = ScreenGui
+CreateCorner(AimReckTargetSpot, 16)
+local AimReckTargetLabel = Instance.new("TextLabel")
+AimReckTargetLabel.Size = UDim2.new(1, 0, 1, 0)
+AimReckTargetLabel.BackgroundTransparency = 1
+AimReckTargetLabel.Text = "●"
+AimReckTargetLabel.TextColor3 = Color3.new(1, 1, 1)
+AimReckTargetLabel.TextScaled = true
+AimReckTargetLabel.Font = Enum.Font.GothamBold
+AimReckTargetLabel.Parent = AimReckTargetSpot
 
 local LandingMarker = Instance.new("Part")
 LandingMarker.Name = _RandomName("", 6)
@@ -915,11 +993,15 @@ ReckToggleButton.MouseButton1Click:Connect(function()
         Tween(ReckToggleOuter, {BackgroundColor3 = Colors.Green}, 0.25)
         if AimReckMarker then AimReckMarker.Visible = false end
         if AimReckBackup then AimReckBackup.Visible = false end
+        if AimReckArrow3 then AimReckArrow3.Visible = false end
+        if AimReckArrow4 then AimReckArrow4.Visible = false end
     else
         Tween(ReckToggleKnob, {Position = UDim2.new(0, 3, 0.5, -10), BackgroundColor3 = Colors.TextMuted}, 0.25)
         Tween(ReckToggleOuter, {BackgroundColor3 = Colors.SliderBg}, 0.25)
         if AimReckMarker then AimReckMarker.Visible = false end
         if AimReckBackup then AimReckBackup.Visible = false end
+        if AimReckArrow3 then AimReckArrow3.Visible = false end
+        if AimReckArrow4 then AimReckArrow4.Visible = false end
     end
 end)
 
@@ -1877,65 +1959,135 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     end
 
     pcall(function()
-        if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
-        if AimReckBackup and AimReckBackup.Parent then AimReckBackup.Visible = false end
-    end)
-
-    pcall(function()
-        if not AIM_RECK_ENABLED or not LandingMarker then
+        if not AIM_RECK_ENABLED then
+            for _, arr in ipairs(AimReckArrows) do
+                if arr and arr.Parent then arr.Visible = false end
+            end
+            if AimReckHintText then AimReckHintText.Visible = false end
+            if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
             if LandingMarker then LandingMarker.Transparency = 1 end
         else
-            local root = GetRootPart()
-            if not root then
+            local cam = workspace.CurrentCamera
+            if not cam or not ScreenGui or not ScreenGui.Parent then
+                for _, arr in ipairs(AimReckArrows) do
+                    if arr and arr.Parent then arr.Visible = false end
+                end
+                if AimReckHintText then AimReckHintText.Visible = false end
+                if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
                 if LandingMarker then LandingMarker.Transparency = 1 end
             else
-                local courtY = root.Position.Y - 3
-                local netPos = getNetPosition()
-                local landPos = nil
-                local pos = ball and ball.Parent and ball.Position
-                local vel = ball and ball.Parent and (ball.AssemblyLinearVelocity or ball.Velocity or Vector3.new(0,0,0)) or Vector3.new(0,0,0)
-                local velMag = vel.Magnitude
-                local minHitSpeed = 3
-
-                if ball and ball.Parent and pos and velMag >= minHitSpeed then
-                    local g = workspace.Gravity or 196.2
-                    local disc = vel.Y * vel.Y + 2 * g * (pos.Y - courtY)
-                    if disc >= 0 then
-                        local t = (-vel.Y + math.sqrt(disc)) / g
-                        if t < 0 then t = (-vel.Y - math.sqrt(disc)) / g end
-                        if t > 0 and t < 12 then
-                            local physLand = Vector3.new(pos.X + vel.X * t, courtY + 0.15, pos.Z + vel.Z * t)
-                            if isOnOurCourt(physLand, root, netPos) then
-                                if netPos then
-                                    local bz, nz, oz = pos.Z, netPos.Z, root.Position.Z
-                                    local ballOnEnemySide = (bz - nz) * (oz - nz) < 0
-                                    local velTowardUs = vel.Z * (oz - nz) > 0
-                                    local ballOnOurSideFalling = (bz - nz) * (oz - nz) > 0 and vel.Y < 0
-                                    if (ballOnEnemySide and velTowardUs) or ballOnOurSideFalling then
-                                        landPos = physLand
-                                    end
-                                else
-                                    landPos = physLand
+                local list = {}
+                local vw = cam.ViewportSize and cam.ViewportSize.X or 800
+                local vh = cam.ViewportSize and cam.ViewportSize.Y or 600
+                if vw < 100 or vh < 100 then
+                    for _, arr in ipairs(AimReckArrows) do if arr and arr.Parent then arr.Visible = false end end
+                    if AimReckHintText then AimReckHintText.Visible = false end
+                    if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
+                else
+                local camPos = cam.CFrame.Position
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= LocalPlayer and plr.Character then
+                        local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp and hrp.Parent then
+                            local pos = hrp.Position
+                            local look = hrp.CFrame.LookVector
+                            if look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
+                            local front = pos + look * 6
+                            local sx, sy, on1 = cam:WorldToViewportPoint(pos)
+                            local sx2, sy2 = cam:WorldToViewportPoint(front)
+                            if on1 and sx >= -80 and sx <= vw + 80 and sy >= -80 and sy <= vh + 80 then
+                                local dx = sx2 - sx
+                                local dy = sy2 - sy
+                                if dx * dx + dy * dy >= 4 then
+                                    local dist = (pos - camPos).Magnitude
+                                    list[#list + 1] = { sx = sx, sy = sy, rot = math.deg(math.atan2(-dy, dx)), dist = dist, pos = pos, look = look }
                                 end
                             end
                         end
                     end
                 end
-
-                if landPos then
-                    local dist = (landPos - root.Position).Magnitude
-                    if dist >= 2 then
-                        if LandingMarker.Parent ~= workspace then LandingMarker.Parent = workspace end
-                        LandingMarker.CFrame = CFrame.new(landPos)
-                        LandingMarker.Transparency = 0.3
+                if #list > 0 then table.sort(list, function(a, b) return a.dist < b.dist end) end
+                local pulse = 1 + 0.06 * math.sin(tick() * 3.5)
+                for i = 1, 4 do
+                    local arr = AimReckArrows[i]
+                    if not arr then break end
+                    if i <= #list then
+                        local d = list[i]
+                        if arr.Parent ~= ScreenGui then arr.Parent = ScreenGui end
+                        arr.Position = UDim2.new(0, d.sx, 0, d.sy)
+                        arr.Rotation = d.rot
+                        arr.Visible = true
+                        if d.dist < 18 then
+                            arr.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
+                            arr.BackgroundTransparency = 0
+                        elseif d.dist < 35 then
+                            arr.BackgroundColor3 = Color3.fromRGB(200, 200, 60)
+                            arr.BackgroundTransparency = 0
+                        else
+                            arr.BackgroundColor3 = Color3.fromRGB(40, 140, 70)
+                            arr.BackgroundTransparency = 0.25
+                        end
+                        local baseW, baseH = 50, 28
+                        if i == 1 then baseW, baseH = 54, 30
+                        elseif i == 3 then baseW, baseH = 44, 24
+                        elseif i == 4 then baseW, baseH = 40, 22
+                        end
+                        arr.Size = UDim2.new(0, math.floor(baseW * pulse), 0, math.floor(baseH * pulse))
                     else
-                        LandingMarker.Transparency = 1
+                        arr.Visible = false
+                    end
+                end
+                if LandingMarker then LandingMarker.Transparency = 1 end
+                local root = GetRootPart()
+                local netPos = root and getNetPosition() or nil
+                local courtY = root and (root.Position.Y - 3) or 0
+                if #list > 0 then
+                    if AimReckHintText then
+                        if AimReckHintText.Parent ~= ScreenGui then AimReckHintText.Parent = ScreenGui end
+                        local d1 = math.floor(list[1].dist)
+                        AimReckHintText.Text = "Seta = direção do inimigo  |  Inimigos: " .. #list .. "  |  Mais perto: " .. d1 .. "m"
+                        AimReckHintText.Visible = true
+                    end
+                    local first = list[1]
+                    if first.pos and first.look and root then
+                        local origin = first.pos
+                        local dir = first.look
+                        local dy = courtY - origin.Y
+                        if math.abs(dir.Y) >= 0.01 then
+                            local t = dy / dir.Y
+                            if t > 0 then
+                                local hit = origin + dir * t
+                                if isOnOurCourt(hit, root, netPos) then
+                                    local tx, ty, onScreen = cam:WorldToViewportPoint(hit)
+                                    if onScreen and tx >= -40 and tx <= vw + 40 and ty >= -40 and ty <= vh + 40 then
+                                        if AimReckTargetSpot then
+                                            if AimReckTargetSpot.Parent ~= ScreenGui then AimReckTargetSpot.Parent = ScreenGui end
+                                            AimReckTargetSpot.Position = UDim2.new(0, tx, 0, ty)
+                                            AimReckTargetSpot.Visible = true
+                                        end
+                                    else
+                                        if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
+                                    end
+                                else
+                                    if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
+                                end
+                            else
+                                if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
+                            end
+                        else
+                            if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
+                        end
+                    else
+                        if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
                     end
                 else
-                    LandingMarker.Transparency = 1
+                    if AimReckHintText then AimReckHintText.Visible = false end
+                    if AimReckTargetSpot then AimReckTargetSpot.Visible = false end
+                end
                 end
             end
         end
+    end
     end)
 
     if BufferOn and frameCounter % 60 == 0 and #B >= 2 then end
@@ -2018,6 +2170,10 @@ function Cleanup.Run()
     AIM_RECK_ENABLED = false
     if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
     if AimReckBackup and AimReckBackup.Parent then AimReckBackup.Visible = false end
+    if AimReckArrow3 and AimReckArrow3.Parent then AimReckArrow3.Visible = false end
+    if AimReckArrow4 and AimReckArrow4.Parent then AimReckArrow4.Visible = false end
+    if AimReckHintText and AimReckHintText.Parent then AimReckHintText.Visible = false end
+    if AimReckTargetSpot and AimReckTargetSpot.Parent then AimReckTargetSpot.Visible = false end
     if LandingMarker and LandingMarker.Parent then pcall(function() LandingMarker:Destroy() end) end
     if Safe.IsValidPlayer() then
         for _, plr in ipairs(Players:GetPlayers()) do
