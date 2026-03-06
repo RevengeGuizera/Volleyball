@@ -28,7 +28,7 @@ local HITBOX_ENABLED = false
 local HITBOX_SIZE = 0
 local MIN_HITBOX_SIZE = 0
 local MAX_HITBOX_SIZE = 50
-local BALL_SEARCH_INTERVAL = 0.28
+local BALL_SEARCH_INTERVAL = 0.35
 local DEBUG_ENABLED = false
 local PULL_DISTANCE = 2
 local BALL_LERP_SPEED = 0.25
@@ -214,11 +214,10 @@ end)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = GUI_PUBLIC_NAME
 ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 ScreenGui.DisplayOrder = 999
 ScreenGui.IgnoreGuiInset = true
 
--- Try CoreGui first (executor), fallback to PlayerGui
 pcall(function()
     ScreenGui.Parent = CoreGui
 end)
@@ -328,16 +327,16 @@ BallConeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 BallConeStroke.Parent = BallConeOutline
 local AimReckMarker = Instance.new("Frame")
 AimReckMarker.Name = _RandomName("", 8)
-AimReckMarker.Size = UDim2.new(0, 56, 0, 56)
+AimReckMarker.Size = UDim2.new(0, 60, 0, 60)
 AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
 AimReckMarker.AnchorPoint = Vector2.new(0.5, 0.5)
 AimReckMarker.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
-AimReckMarker.BackgroundTransparency = 0.1
+AimReckMarker.BackgroundTransparency = 0
 AimReckMarker.BorderSizePixel = 0
 AimReckMarker.Visible = false
-AimReckMarker.ZIndex = 100
+AimReckMarker.ZIndex = 9999
 AimReckMarker.Parent = ScreenGui
-CreateCorner(AimReckMarker, 28)
+CreateCorner(AimReckMarker, 30)
 local AimReckStroke = Instance.new("UIStroke")
 AimReckStroke.Thickness = 3
 AimReckStroke.Color = Color3.fromRGB(255, 255, 255)
@@ -1554,7 +1553,7 @@ end
 local cachedBall = nil
 local lastBallSearch = 0
 local lastShapeSearch = 0
-local SHAPE_SEARCH_INTERVAL = 2
+local SHAPE_SEARCH_INTERVAL = 2.5
 
 local function isPartOfCharacter(part)
     if not part then return false end
@@ -1579,17 +1578,28 @@ local function findBallByShape()
     local root = GetRootPart()
     local myPos = root and root.Parent and root.Position or Vector3.new(0, 0, 0)
     local netPos = nil
-    do
-        local netNames = {"Net", "Rede", "RedeVolei", "VolleyballNet", "Middle", "Nets"}
-        for _, nn in ipairs(netNames) do
-            local obj = workspace:FindFirstChild(nn, true)
-            if obj then
-                if obj:IsA("BasePart") then netPos = obj.Position break end
-                if obj:IsA("Model") and obj.PrimaryPart then netPos = obj.PrimaryPart.Position break end
-                local p = obj:FindFirstChildWhichIsA("BasePart")
-                if p then netPos = p.Position break end
+    local netNames = {"Net", "Rede", "RedeVolei", "VolleyballNet", "Middle", "Nets"}
+    for _, nn in ipairs(netNames) do
+        local obj = workspace:FindFirstChild(nn)
+        if obj then
+            if obj:IsA("BasePart") then netPos = obj.Position break end
+            if obj:IsA("Model") and obj.PrimaryPart then netPos = obj.PrimaryPart.Position break end
+            local p = obj:FindFirstChildWhichIsA("BasePart")
+            if p then netPos = p.Position break end
+        end
+        for _, top in ipairs(workspace:GetChildren()) do
+            if not top:IsA("BasePart") then
+                local o = top:FindFirstChild(nn)
+                if o then
+                    if o:IsA("BasePart") then netPos = o.Position break end
+                    if o:IsA("Model") and o.PrimaryPart then netPos = o.PrimaryPart.Position break end
+                    local p2 = o:FindFirstChildWhichIsA("BasePart")
+                    if p2 then netPos = p2.Position break end
+                    break
+                end
             end
         end
+        if netPos then break end
     end
     local candidates = {}
     for _, a in ipairs(workspace:GetChildren()) do
@@ -1600,13 +1610,6 @@ local function findBallByShape()
             for _, b in ipairs(a:GetChildren()) do
                 if b:IsA("BasePart") and not isPartOfCharacter(b) and looksLikeSphere(b) then
                     candidates[#candidates + 1] = b
-                end
-                if not b:IsA("BasePart") then
-                    for _, c in ipairs(b:GetChildren()) do
-                        if c:IsA("BasePart") and not isPartOfCharacter(c) and looksLikeSphere(c) then
-                            candidates[#candidates + 1] = c
-                        end
-                    end
                 end
             end
         end
@@ -1648,7 +1651,13 @@ local function FindBall()
     lastBallSearch = now
 
     for _, pathName in ipairs(BALL_SEARCH_PATHS) do
-        local obj = workspace:FindFirstChild(pathName, true)
+        local obj = workspace:FindFirstChild(pathName)
+        if not obj then
+            for _, ch in ipairs(workspace:GetChildren()) do
+                obj = ch:FindFirstChild(pathName)
+                if obj then break end
+            end
+        end
         if obj then
             local part = getPartFromBallObj(obj)
             if part then
@@ -1755,11 +1764,11 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
     end
 
     if AIM_RECK_ENABLED and AimReckMarker and ScreenGui and ScreenGui.Parent then
-        if not AimReckMarker.Parent then AimReckMarker.Parent = ScreenGui end
+        if AimReckMarker.Parent ~= ScreenGui then AimReckMarker.Parent = ScreenGui end
         local cam = workspace.CurrentCamera
         if cam and cam.ViewportSize and cam.ViewportSize.X > 0 and cam.ViewportSize.Y > 0 then
             local vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
-            local m = 40
+            local m = 50
             if ball and ball.Parent then
                 local v2 = cam:WorldToViewportPoint(ball.Position)
                 AimReckMarker.Position = UDim2.new(0, math.clamp(v2.X, m, vw - m), 0, math.clamp(v2.Y, m, vh - m))
