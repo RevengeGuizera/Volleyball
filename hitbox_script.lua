@@ -352,6 +352,19 @@ AimReckLabel.TextColor3 = Color3.new(1, 1, 1)
 AimReckLabel.TextScaled = true
 AimReckLabel.Font = Enum.Font.GothamBold
 AimReckLabel.Parent = AimReckMarker
+
+local LandingMarker = Instance.new("Part")
+LandingMarker.Name = _RandomName("", 6)
+LandingMarker.Size = Vector3.new(2.8, 0.12, 2.8)
+LandingMarker.Anchored = true
+LandingMarker.CanCollide = false
+LandingMarker.CanQuery = false
+LandingMarker.CanTouch = false
+LandingMarker.Transparency = 1
+LandingMarker.Color = Color3.fromRGB(50, 205, 100)
+LandingMarker.Material = Enum.Material.SmoothPlastic
+LandingMarker.Parent = workspace
+
 local CONE_HALF_DEG = 10
 local CONE_LIM_RAD = math.rad(CONE_HALF_DEG)
 
@@ -871,11 +884,16 @@ ReckToggleButton.MouseButton1Click:Connect(function()
     if AIM_RECK_ENABLED then
         Tween(ReckToggleKnob, {Position = UDim2.new(1, -23, 0.5, -10), BackgroundColor3 = Colors.TextPrimary}, 0.25)
         Tween(ReckToggleOuter, {BackgroundColor3 = Colors.Green}, 0.25)
+        if AimReckMarker and ScreenGui and ScreenGui.Parent then
+            AimReckMarker.Parent = ScreenGui
+            AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
+            AimReckMarker.Visible = true
+        end
     else
         Tween(ReckToggleKnob, {Position = UDim2.new(0, 3, 0.5, -10), BackgroundColor3 = Colors.TextMuted}, 0.25)
         Tween(ReckToggleOuter, {BackgroundColor3 = Colors.SliderBg}, 0.25)
+        if AimReckMarker then AimReckMarker.Visible = false end
     end
-    if AimReckMarker then AimReckMarker.Visible = false end
 end)
 
 ReckToggleOuter.MouseEnter:Connect(function()
@@ -1104,32 +1122,42 @@ local function ApplyBordaColor(accent, glow, dark)
     Colors.AccentGlow = glow
     Colors.AccentDark = dark
     Colors.SliderFill = accent
-    MainStroke.Color = accent
-    MainStrokeOuter.Color = glow
-    TitleAccentCorner.BackgroundColor3 = accent
-    SubTitle.TextColor3 = glow
-    SectionLeftBar.BackgroundColor3 = accent
-    SliderValue.TextColor3 = glow
-    SliderFill.BackgroundColor3 = accent
-    BordaSectionLeftBar.BackgroundColor3 = accent
-    ReckSectionLeftBar.BackgroundColor3 = accent
-    EspSectionLeftBar.BackgroundColor3 = accent
-    ToggleGuiBtn.BackgroundColor3 = accent
-    local gradMain = MainAccentBottom:FindFirstChildOfClass("UIGradient")
-    if gradMain then gradMain.Color = ColorSequence.new(dark, glow) end
-    local gradAccent = AccentLine:FindFirstChildOfClass("UIGradient")
-    if gradAccent then gradAccent.Color = ColorSequence.new(dark, glow) end
-    local gradSlider = SliderFill:FindFirstChildOfClass("UIGradient")
-    if gradSlider then gradSlider.Color = ColorSequence.new(dark, glow) end
-    local strokeKnob = SliderKnob:FindFirstChildOfClass("UIStroke")
-    if strokeKnob then strokeKnob.Color = accent end
-    local glowKnob = SliderKnob:FindFirstChildOfClass("Frame")
-    if glowKnob then glowKnob.BackgroundColor3 = accent end
-    local strokeGui = ToggleGuiBtn:FindFirstChildOfClass("UIStroke")
-    if strokeGui then strokeGui.Color = glow end
-    if HITBOX_ENABLED then Tween(ToggleOuter, {BackgroundColor3 = accent}, 0.2) end
-    if AIM_RECK_ENABLED then Tween(ReckToggleOuter, {BackgroundColor3 = accent}, 0.2) end
-    if ESP_ENABLED then Tween(EspToggleOuter, {BackgroundColor3 = accent}, 0.2) end
+    if MainStroke then MainStroke.Color = accent end
+    if MainStrokeOuter then MainStrokeOuter.Color = glow end
+    if TitleAccentCorner then TitleAccentCorner.BackgroundColor3 = accent end
+    if SubTitle then SubTitle.TextColor3 = glow end
+    if SectionLeftBar then SectionLeftBar.BackgroundColor3 = accent end
+    if SliderValue then SliderValue.TextColor3 = glow end
+    if SliderFill then SliderFill.BackgroundColor3 = accent end
+    if BordaSectionLeftBar then BordaSectionLeftBar.BackgroundColor3 = accent end
+    if ReckSectionLeftBar then ReckSectionLeftBar.BackgroundColor3 = accent end
+    if EspSectionLeftBar then EspSectionLeftBar.BackgroundColor3 = accent end
+    if ToggleGuiBtn then ToggleGuiBtn.BackgroundColor3 = accent end
+    if MainAccentBottom then
+        local gradMain = MainAccentBottom:FindFirstChildOfClass("UIGradient")
+        if gradMain then gradMain.Color = ColorSequence.new(dark, glow) end
+    end
+    if AccentLine then
+        local gradAccent = AccentLine:FindFirstChildOfClass("UIGradient")
+        if gradAccent then gradAccent.Color = ColorSequence.new(dark, glow) end
+    end
+    if SliderFill then
+        local gradSlider = SliderFill:FindFirstChildOfClass("UIGradient")
+        if gradSlider then gradSlider.Color = ColorSequence.new(dark, glow) end
+    end
+    if SliderKnob then
+        local strokeKnob = SliderKnob:FindFirstChildOfClass("UIStroke")
+        if strokeKnob then strokeKnob.Color = accent end
+        local glowKnob = SliderKnob:FindFirstChildOfClass("Frame")
+        if glowKnob then glowKnob.BackgroundColor3 = accent end
+    end
+    if ToggleGuiBtn then
+        local strokeGui = ToggleGuiBtn:FindFirstChildOfClass("UIStroke")
+        if strokeGui then strokeGui.Color = glow end
+    end
+    if HITBOX_ENABLED and ToggleOuter then Tween(ToggleOuter, {BackgroundColor3 = accent}, 0.2) end
+    if AIM_RECK_ENABLED and ReckToggleOuter then Tween(ReckToggleOuter, {BackgroundColor3 = accent}, 0.2) end
+    if ESP_ENABLED and EspToggleOuter then Tween(EspToggleOuter, {BackgroundColor3 = accent}, 0.2) end
 end
 
 for i, preset in ipairs(BordaPresets) do
@@ -1784,6 +1812,30 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
         AimReckMarker.Visible = false
     end
 
+    if AIM_RECK_ENABLED and LandingMarker and ball and ball.Parent then
+        local g = workspace.Gravity or 196.2
+        local pos = ball.Position
+        local vel = ball.AssemblyLinearVelocity or ball.Velocity or Vector3.new(0, 0, 0)
+        local root = GetRootPart()
+        local courtY = root and (root.Position.Y - 2.5) or (pos.Y - 3)
+        local disc = vel.Y * vel.Y + 2 * g * (pos.Y - courtY)
+        if disc >= 0 then
+            local t = (-vel.Y + math.sqrt(disc)) / g
+            if t < 0 then t = (-vel.Y - math.sqrt(disc)) / g end
+            if t > 0 and t < 10 then
+                local landPos = Vector3.new(pos.X + vel.X * t, courtY + 0.06, pos.Z + vel.Z * t)
+                LandingMarker.CFrame = CFrame.new(landPos)
+                LandingMarker.Transparency = 0.45
+            else
+                LandingMarker.Transparency = 1
+            end
+        else
+            LandingMarker.Transparency = 1
+        end
+    elseif LandingMarker then
+        LandingMarker.Transparency = 1
+    end
+
     if BufferOn and frameCounter % 60 == 0 and #B >= 2 then end
 
     frameCounter = frameCounter + 1
@@ -1863,6 +1915,7 @@ function Cleanup.Run()
     ESP_ENABLED = false
     AIM_RECK_ENABLED = false
     if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
+    if LandingMarker and LandingMarker.Parent then pcall(function() LandingMarker:Destroy() end) end
     if Safe.IsValidPlayer() then
         for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= LocalPlayer and plr.Character then RemoveEspFromCharacter(plr.Character) end
