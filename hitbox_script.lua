@@ -8,11 +8,15 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-
-local LocalPlayer = Players.LocalPlayer
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    LocalPlayer = Players:WaitForChild("LocalPlayer", 12)
+end
+if not LocalPlayer then return end
 local RS_ = ReplicatedStorage
 local R = {}
 function R.F(name) return RS_ and RS_:FindFirstChild(name) or nil end
@@ -87,8 +91,8 @@ local function _RandomName(prefix, len)
     end
     return s
 end
-local ANTIDETECT_START_DELAY_MIN = 0.5
-local ANTIDETECT_START_DELAY_MAX = 1.5
+local ANTIDETECT_START_DELAY_MIN = 0
+local ANTIDETECT_START_DELAY_MAX = 0
 local scriptStartTime
 if ANTIDETECT_START_DELAY_MIN == 0 and ANTIDETECT_START_DELAY_MAX == 0 then
     scriptStartTime = 0
@@ -99,12 +103,16 @@ local GUI_PUBLIC_NAME = _RandomName("", 12)
 local ESP_PUBLIC_NAME = _RandomName("", 10)
 
 -- ═══════════════════════════════════════════════
-for _, child in ipairs(CoreGui:GetChildren()) do
-    if child:IsA("ScreenGui") and child:FindFirstChild("MainFrame") then
-        child:Destroy()
-        break
+pcall(function()
+    if CoreGui and CoreGui.GetChildren then
+        for _, child in ipairs(CoreGui:GetChildren()) do
+            if child and child:IsA("ScreenGui") and child:FindFirstChild("MainFrame") then
+                child:Destroy()
+                break
+            end
+        end
     end
-end
+end)
 
 -- ═══════════════════════════════════════════════
 local Cleanup = {}
@@ -219,11 +227,13 @@ ScreenGui.DisplayOrder = 999
 ScreenGui.IgnoreGuiInset = true
 
 pcall(function()
-    ScreenGui.Parent = CoreGui
+    if CoreGui then ScreenGui.Parent = CoreGui end
 end)
-if not ScreenGui.Parent then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+if not ScreenGui.Parent and LocalPlayer then
+    local pg = LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 8)
+    if pg then ScreenGui.Parent = pg end
 end
+if not ScreenGui.Parent then return end
 
 -- ═══════════════════════════════════════════════
 -- UTILITY FUNCTIONS
@@ -272,6 +282,7 @@ MainFrame.Position = UDim2.new(0.5, -MAIN_WINDOW_WIDTH/2, 0.5, -MAIN_WINDOW_HEIG
 MainFrame.BackgroundColor3 = Colors.Background
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
+MainFrame.ZIndex = 0
 MainFrame.Parent = ScreenGui
 CreateCorner(MainFrame, 16)
 CreateGradient(MainFrame, Color3.fromRGB(18, 18, 30), Color3.fromRGB(12, 12, 22), 135)
@@ -314,6 +325,7 @@ CreateGradient(MainAccentBottom, Colors.AccentDark, Colors.AccentGlow, 0)
 
 local BallConeOutline = Instance.new("Frame")
 BallConeOutline.Name = "BallConeOutline"
+BallConeOutline.ZIndex = 0
 BallConeOutline.BackgroundTransparency = 1
 BallConeOutline.Size = UDim2.new(0, 28, 0, 28)
 BallConeOutline.Position = UDim2.new(0, 0, 0, 0)
@@ -352,6 +364,23 @@ AimReckLabel.TextColor3 = Color3.new(1, 1, 1)
 AimReckLabel.TextScaled = true
 AimReckLabel.Font = Enum.Font.GothamBold
 AimReckLabel.Parent = AimReckMarker
+
+local AimReckBackup = Instance.new("TextLabel")
+AimReckBackup.Name = _RandomName("", 6)
+AimReckBackup.Size = UDim2.new(0, 60, 0, 60)
+AimReckBackup.Position = UDim2.new(0.5, 0, 0.5, 0)
+AimReckBackup.AnchorPoint = Vector2.new(0.5, 0.5)
+AimReckBackup.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
+AimReckBackup.BackgroundTransparency = 0
+AimReckBackup.Text = "▼"
+AimReckBackup.TextColor3 = Color3.new(1, 1, 1)
+AimReckBackup.TextScaled = true
+AimReckBackup.Font = Enum.Font.GothamBold
+AimReckBackup.Visible = false
+AimReckBackup.ZIndex = 9998
+AimReckBackup.BorderSizePixel = 0
+AimReckBackup.Parent = ScreenGui
+CreateCorner(AimReckBackup, 30)
 
 local LandingMarker = Instance.new("Part")
 LandingMarker.Name = _RandomName("", 6)
@@ -884,15 +913,23 @@ ReckToggleButton.MouseButton1Click:Connect(function()
     if AIM_RECK_ENABLED then
         Tween(ReckToggleKnob, {Position = UDim2.new(1, -23, 0.5, -10), BackgroundColor3 = Colors.TextPrimary}, 0.25)
         Tween(ReckToggleOuter, {BackgroundColor3 = Colors.Green}, 0.25)
-        if AimReckMarker and ScreenGui and ScreenGui.Parent then
-            AimReckMarker.Parent = ScreenGui
-            AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
-            AimReckMarker.Visible = true
+        if ScreenGui and ScreenGui.Parent then
+            if AimReckMarker then
+                AimReckMarker.Parent = ScreenGui
+                AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
+                AimReckMarker.Visible = true
+            end
+            if AimReckBackup then
+                AimReckBackup.Parent = ScreenGui
+                AimReckBackup.Position = UDim2.new(0.5, 0, 0.5, 0)
+                AimReckBackup.Visible = true
+            end
         end
     else
         Tween(ReckToggleKnob, {Position = UDim2.new(0, 3, 0.5, -10), BackgroundColor3 = Colors.TextMuted}, 0.25)
         Tween(ReckToggleOuter, {BackgroundColor3 = Colors.SliderBg}, 0.25)
         if AimReckMarker then AimReckMarker.Visible = false end
+        if AimReckBackup then AimReckBackup.Visible = false end
     end
 end)
 
@@ -1791,50 +1828,60 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
         BallInCone = false
     end
 
-    if AIM_RECK_ENABLED and AimReckMarker and ScreenGui and ScreenGui.Parent then
-        if AimReckMarker.Parent ~= ScreenGui then AimReckMarker.Parent = ScreenGui end
-        local cam = workspace.CurrentCamera
-        if cam and cam.ViewportSize and cam.ViewportSize.X > 0 and cam.ViewportSize.Y > 0 then
-            local vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
-            local m = 50
-            if ball and ball.Parent then
-                local v2 = cam:WorldToViewportPoint(ball.Position)
-                AimReckMarker.Position = UDim2.new(0, math.clamp(v2.X, m, vw - m), 0, math.clamp(v2.Y, m, vh - m))
-            else
-                AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
+    pcall(function()
+        if AIM_RECK_ENABLED and ScreenGui and ScreenGui.Parent then
+            local cam = workspace.CurrentCamera
+            local vw, vh = 800, 600
+            if cam and cam.ViewportSize and cam.ViewportSize.X > 0 and cam.ViewportSize.Y > 0 then
+                vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
             end
-            AimReckMarker.Visible = true
+            local m = 50
+            local pos2d = UDim2.new(0.5, 0, 0.5, 0)
+            if ball and ball.Parent and cam then
+                local v2 = cam:WorldToViewportPoint(ball.Position)
+                pos2d = UDim2.new(0, math.clamp(v2.X, m, vw - m), 0, math.clamp(v2.Y, m, vh - m))
+            end
+            if AimReckMarker then
+                if AimReckMarker.Parent ~= ScreenGui then AimReckMarker.Parent = ScreenGui end
+                AimReckMarker.Position = pos2d
+                AimReckMarker.Visible = true
+            end
+            if AimReckBackup then
+                if AimReckBackup.Parent ~= ScreenGui then AimReckBackup.Parent = ScreenGui end
+                AimReckBackup.Position = pos2d
+                AimReckBackup.Visible = true
+            end
         else
-            AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
-            AimReckMarker.Visible = true
+            if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
+            if AimReckBackup and AimReckBackup.Parent then AimReckBackup.Visible = false end
         end
-    elseif AimReckMarker and AimReckMarker.Parent then
-        AimReckMarker.Visible = false
-    end
+    end)
 
-    if AIM_RECK_ENABLED and LandingMarker and ball and ball.Parent then
-        local g = workspace.Gravity or 196.2
-        local pos = ball.Position
-        local vel = ball.AssemblyLinearVelocity or ball.Velocity or Vector3.new(0, 0, 0)
-        local root = GetRootPart()
-        local courtY = root and (root.Position.Y - 2.5) or (pos.Y - 3)
-        local disc = vel.Y * vel.Y + 2 * g * (pos.Y - courtY)
-        if disc >= 0 then
-            local t = (-vel.Y + math.sqrt(disc)) / g
-            if t < 0 then t = (-vel.Y - math.sqrt(disc)) / g end
-            if t > 0 and t < 10 then
-                local landPos = Vector3.new(pos.X + vel.X * t, courtY + 0.06, pos.Z + vel.Z * t)
-                LandingMarker.CFrame = CFrame.new(landPos)
-                LandingMarker.Transparency = 0.45
+    pcall(function()
+        if AIM_RECK_ENABLED and LandingMarker and ball and ball.Parent then
+            local g = workspace.Gravity or 196.2
+            local pos = ball.Position
+            local vel = ball.AssemblyLinearVelocity or ball.Velocity or Vector3.new(0, 0, 0)
+            local root = GetRootPart()
+            local courtY = root and (root.Position.Y - 2.5) or (pos.Y - 3)
+            local disc = vel.Y * vel.Y + 2 * g * (pos.Y - courtY)
+            if disc >= 0 then
+                local t = (-vel.Y + math.sqrt(disc)) / g
+                if t < 0 then t = (-vel.Y - math.sqrt(disc)) / g end
+                if t > 0 and t < 10 then
+                    local landPos = Vector3.new(pos.X + vel.X * t, courtY + 0.06, pos.Z + vel.Z * t)
+                    LandingMarker.CFrame = CFrame.new(landPos)
+                    LandingMarker.Transparency = 0.45
+                else
+                    LandingMarker.Transparency = 1
+                end
             else
                 LandingMarker.Transparency = 1
             end
-        else
+        elseif LandingMarker then
             LandingMarker.Transparency = 1
         end
-    elseif LandingMarker then
-        LandingMarker.Transparency = 1
-    end
+    end)
 
     if BufferOn and frameCounter % 60 == 0 and #B >= 2 then end
 
@@ -1915,6 +1962,7 @@ function Cleanup.Run()
     ESP_ENABLED = false
     AIM_RECK_ENABLED = false
     if AimReckMarker and AimReckMarker.Parent then AimReckMarker.Visible = false end
+    if AimReckBackup and AimReckBackup.Parent then AimReckBackup.Visible = false end
     if LandingMarker and LandingMarker.Parent then pcall(function() LandingMarker:Destroy() end) end
     if Safe.IsValidPlayer() then
         for _, plr in ipairs(Players:GetPlayers()) do
