@@ -2023,19 +2023,19 @@ local function UpdateAimReck()
                     bg.Name = _RandomName("", 6)
                     bg.Adornee = hrp
                     bg.Parent = gui
-                    bg.Size = UDim2.new(0, 120, 0, 50)
+                    bg.Size = UDim2.new(0, 100, 0, 28)
                     bg.AlwaysOnTop = true
-                    bg.StudsOffset = Vector3.new(0, 1.5, 0)
-                    pcall(function() bg.StudsOffsetWorldSpace = hrp.CFrame.LookVector * 2 end)
+                    bg.ClipsDescendants = false
+                    bg.StudsOffset = Vector3.new(0, 0, -2.5)
                     local lbl = Instance.new("TextLabel")
                     lbl.Size = UDim2.new(1, 0, 1, 0)
                     lbl.BackgroundTransparency = 1
                     lbl.BorderSizePixel = 0
-                    lbl.Text = "➤"
-                    lbl.TextColor3 = Color3.fromRGB(0, 255, 100)
+                    lbl.Text = "►"
+                    lbl.TextColor3 = Color3.fromRGB(0, 255, 120)
                     lbl.TextScaled = true
                     lbl.Font = Enum.Font.GothamBold
-                    lbl.TextStrokeTransparency = 0.3
+                    lbl.TextStrokeTransparency = 0.5
                     lbl.TextStrokeColor3 = Color3.new(0, 0, 0)
                     lbl.Parent = bg
                     AimReckBillboards[plr] = { billboard = bg, label = lbl }
@@ -2044,9 +2044,9 @@ local function UpdateAimReck()
             end
             if data and data.billboard and data.billboard.Parent and data.label then
                 data.billboard.Adornee = hrp
-                pcall(function() data.billboard.StudsOffsetWorldSpace = hrp.CFrame.LookVector * 2 end)
+                data.billboard.StudsOffset = Vector3.new(0, 0, -2.5)
                 data.label.Rotation = rot or 0
-                data.label.TextColor3 = Color3.fromRGB(0, 255, 100)
+                data.label.TextColor3 = Color3.fromRGB(0, 255, 120)
                 data.billboard.Enabled = true
             end
         end
