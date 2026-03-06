@@ -1919,6 +1919,13 @@ local function ResetAll()
 end
 
 -- Aim Reck: atualização única e à prova de falhas (nunca dá erro)
+local function getViewportXY(a, b)
+    if a == nil then return 0, 0, false end
+    if type(a) == "number" and type(b) == "number" then return a, b, true end
+    if a.X ~= nil and a.Y ~= nil then return tonumber(a.X) or 0, tonumber(a.Y) or 0, (type(b) == "number" and b > 0) end
+    return 0, 0, false
+end
+
 local function UpdateAimReck()
     local arrows = AimReckArrows
     local hintText = AimReckHintText
@@ -1941,7 +1948,7 @@ local function UpdateAimReck()
 
     local vw = (cam.ViewportSize and cam.ViewportSize.X) or 800
     local vh = (cam.ViewportSize and cam.ViewportSize.Y) or 600
-    if type(vw) ~= "number" or type(vh) ~= "number" or vw < 100 or vh < 100 then hideAll(); return end
+    if type(vw) ~= "number" or type(vh) ~= "number" or vw < 50 or vh < 50 then hideAll(); return end
 
     local list = {}
     local camPos = cam.CFrame and cam.CFrame.Position
@@ -1964,24 +1971,17 @@ local function UpdateAimReck()
                         local look = cf.LookVector
                         if not look or look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
                         local front = pos + look * 6
-                        local ok, v2, depth = pcall(function() return cam:WorldToViewportPoint(pos) end)
-                        if ok and v2 then
-                            local sx = type(v2) == "userdata" and v2.X or v2
-                            local sy = type(v2) == "userdata" and v2.Y or depth
-                            local on1 = (type(depth) == "number" and depth > 0) or (v2 and true)
-                            if type(sx) ~= "number" then sx = 0 end
-                            if type(sy) ~= "number" then sy = 0 end
-                            local ok2, v2b, depth2 = pcall(function() return cam:WorldToViewportPoint(front) end)
-                            if ok2 and v2b then
-                                local sx2 = type(v2b) == "userdata" and v2b.X or v2b
-                                local sy2 = type(v2b) == "userdata" and v2b.Y or depth2
-                                if type(sx2) ~= "number" then sx2 = sx end
-                                if type(sy2) ~= "number" then sy2 = sy end
+                        local ok, a1, b1 = pcall(function() return cam:WorldToViewportPoint(pos) end)
+                        if ok and a1 ~= nil then
+                            local sx, sy, on1 = getViewportXY(a1, b1)
+                            local ok2, a2, b2 = pcall(function() return cam:WorldToViewportPoint(front) end)
+                            if ok2 and a2 ~= nil then
+                                local sx2, sy2 = getViewportXY(a2, b2)
                                 local dx = sx2 - sx
                                 local dy = sy2 - sy
-                                if dx * dx + dy * dy >= 4 then
+                                if dx * dx + dy * dy >= 1 then
                                     local dist = (pos - camPos).Magnitude
-                                    if dist == dist then
+                                    if dist == dist and dist < 1000 then
                                         list[#list + 1] = { sx = sx, sy = sy, rot = math.deg(math.atan2(-dy, dx)), dist = dist, pos = pos, look = look }
                                     end
                                 end
@@ -2004,7 +2004,7 @@ local function UpdateAimReck()
         local d = list[i]
         if d and gui and gui.Parent then
             if arr.Parent ~= gui then arr.Parent = gui end
-            arr.Position = UDim2.new(0, d.sx or 0, 0, d.sy or 0)
+            arr.Position = UDim2.new(0, math.floor(d.sx or 0), 0, math.floor(d.sy or 0))
             arr.Rotation = d.rot or 0
             arr.Visible = true
             local dist = d.dist or 0
@@ -2033,7 +2033,11 @@ local function UpdateAimReck()
     local courtY = (root and root.Position and (root.Position.Y - 3)) or 0
 
     if #list == 0 then
-        if hintText and hintText.Parent then hintText.Visible = false end
+        if hintText and gui and gui.Parent then
+            if hintText.Parent ~= gui then hintText.Parent = gui end
+            hintText.Text = "Aim Reck ON  |  À espera de inimigos na partida..."
+            hintText.Visible = true
+        end
         if targetSpot and targetSpot.Parent then targetSpot.Visible = false end
         return
     end
@@ -2073,14 +2077,12 @@ local function UpdateAimReck()
         if targetSpot.Parent then targetSpot.Visible = false end
         return
     end
-    local ok3, v2hit, depthHit = pcall(function() return cam:WorldToViewportPoint(hit) end)
-    if not ok3 or not v2hit then
+    local ok3, aHit, bHit = pcall(function() return cam:WorldToViewportPoint(hit) end)
+    if not ok3 or aHit == nil then
         if targetSpot.Parent then targetSpot.Visible = false end
         return
     end
-    local tx = (v2hit and v2hit.X ~= nil) and v2hit.X or v2hit
-    local ty = (v2hit and v2hit.Y ~= nil) and v2hit.Y or depthHit
-    local onScreen = (type(depthHit) == "number" and depthHit > 0) or (v2hit and true)
+    local tx, ty, onScreen = getViewportXY(aHit, bHit)
     if type(tx) ~= "number" or type(ty) ~= "number" or not onScreen then
         if targetSpot.Parent then targetSpot.Visible = false end
         return
@@ -2111,15 +2113,21 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
             local dot = math.clamp(lv:Dot(dv), -1, 1)
             local ang = math.acos(dot)
             if ang <= CONE_LIM_RAD then
-                local vx, vy, on = cam:WorldToViewportPoint(bp)
-                if on then
-                    if math.random() < (30/100) then
-                        vx = vx + (math.random(1, 2) * (math.random() >= 0.5 and 1 or -1))
-                        vy = vy + (math.random(1, 2) * (math.random() >= 0.5 and 1 or -1))
+                local ok, a, b = pcall(function() return cam:WorldToViewportPoint(bp) end)
+                if ok and a ~= nil then
+                    local vx, vy, on = getViewportXY(a, b)
+                    if on then
+                        if math.random() < (30/100) then
+                            vx = vx + (math.random(1, 2) * (math.random() >= 0.5 and 1 or -1))
+                            vy = vy + (math.random(1, 2) * (math.random() >= 0.5 and 1 or -1))
+                        end
+                        BallConeOutline.Position = UDim2.new(0, math.floor(vx), 0, math.floor(vy))
+                        BallConeOutline.Visible = true
+                        BallInCone = true
+                    else
+                        BallConeOutline.Visible = false
+                        BallInCone = false
                     end
-                    BallConeOutline.Position = UDim2.new(0, vx, 0, vy)
-                    BallConeOutline.Visible = true
-                    BallInCone = true
                 else
                     BallConeOutline.Visible = false
                     BallInCone = false
