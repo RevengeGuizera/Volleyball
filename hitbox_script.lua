@@ -28,7 +28,7 @@ local HITBOX_ENABLED = false
 local HITBOX_SIZE = 0
 local MIN_HITBOX_SIZE = 0
 local MAX_HITBOX_SIZE = 50
-local BALL_SEARCH_INTERVAL = 0.18
+local BALL_SEARCH_INTERVAL = 0.28
 local DEBUG_ENABLED = false
 local PULL_DISTANCE = 2
 local BALL_LERP_SPEED = 0.25
@@ -335,10 +335,10 @@ AimReckMarker.Size = UDim2.new(0, 52, 0, 52)
 AimReckMarker.Position = UDim2.new(0, 0, 0, 0)
 AimReckMarker.AnchorPoint = Vector2.new(0.5, 0.5)
 AimReckMarker.BackgroundColor3 = Color3.fromRGB(50, 205, 100)
-AimReckMarker.BackgroundTransparency = 0.25
+AimReckMarker.BackgroundTransparency = 0.15
 AimReckMarker.BorderSizePixel = 0
 AimReckMarker.Visible = false
-AimReckMarker.ZIndex = 50
+AimReckMarker.ZIndex = 100
 AimReckMarker.Parent = ScreenGui
 CreateCorner(AimReckMarker, 26)
 local AimReckStroke = Instance.new("UIStroke")
@@ -1213,7 +1213,6 @@ for _, plr in ipairs(Players:GetPlayers()) do
     end
 end
 
--- Reaplica ESP a cada 2.5s (throttled; loop encerra no cleanup)
 task.spawn(function()
     while Cleanup._active do
         task.wait(2.5)
@@ -1557,6 +1556,8 @@ end
 
 local cachedBall = nil
 local lastBallSearch = 0
+local lastShapeSearch = 0
+local SHAPE_SEARCH_INTERVAL = 2
 
 local function isPartOfCharacter(part)
     if not part then return false end
@@ -1686,10 +1687,14 @@ local function FindBall()
         end
     end
 
-    local byShape = findBallByShape()
-    if byShape then
-        cachedBall = byShape
-        return byShape
+    local now2 = tick()
+    if now2 - lastShapeSearch >= SHAPE_SEARCH_INTERVAL then
+        lastShapeSearch = now2
+        local byShape = findBallByShape()
+        if byShape then
+            cachedBall = byShape
+            return byShape
+        end
     end
 
     return nil
@@ -1757,11 +1762,15 @@ hitboxConnection = RunService.RenderStepped:Connect(function()
 
     if AIM_RECK_ENABLED and AimReckMarker and AimReckMarker.Parent then
         local rp = GetRootPart()
-        if rp and rp.Parent and ball and ball.Parent and cam then
-            local v2 = cam:WorldToViewportPoint(ball.Position)
+        if rp and rp.Parent and cam then
             local vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
             local m = 50
-            AimReckMarker.Position = UDim2.new(0, math.clamp(v2.X, m, vw - m), 0, math.clamp(v2.Y, m, vh - m))
+            if ball and ball.Parent then
+                local v2 = cam:WorldToViewportPoint(ball.Position)
+                AimReckMarker.Position = UDim2.new(0, math.clamp(v2.X, m, vw - m), 0, math.clamp(v2.Y, m, vh - m))
+            else
+                AimReckMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
+            end
             AimReckMarker.Visible = true
         else
             AimReckMarker.Visible = false
